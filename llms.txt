@@ -1,0 +1,16 @@
+# {{REFLECTOR_TITLE}}
+
+{{REFLECTOR_TITLE}} é um refletor digital multiprotocolo para a comunidade radioamadora.
+
+## Conteúdo principal
+- Painel ao vivo: https://{{REFLECTOR_DOMAIN}}/
+- Módulos e acessos: https://{{REFLECTOR_DOMAIN}}/?page=modulos
+- Estações conectadas: https://{{REFLECTOR_DOMAIN}}/?page=conectados
+- Ranking de atividade recente: https://{{REFLECTOR_DOMAIN}}/?page=ranking
+- Lista de refletores XLX: https://{{REFLECTOR_DOMAIN}}/?page=refletores
+
+## Protocolos
+D-STAR, DMR e C4FM/YSF.
+
+## Observação sobre o ranking
+Os rankings são calculados com o histórico disponível nos logs e com as conexões ativas; não representam necessariamente todo o histórico do servidor.
