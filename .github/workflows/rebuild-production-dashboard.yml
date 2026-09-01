@@ -192,12 +192,21 @@ jobs:
             exit 1
           fi
 
+          if grep -RnE --binary-files=without-match \
+            --exclude-dir=.git --exclude-dir=.github --exclude='site.example.php' \
+            '(XLX026 Brasil|BR-XLX026|XLX026-[A-Z]|XRF026|YSF72426|PU2PNY|xlx026\.net|Santa[[:space:]]+Isabel)' \
+            . > "$tmp/public-identity-audit.txt" 2>/dev/null; then
+            cat "$tmp/public-identity-audit.txt" >&2
+            echo 'ERROR: reflector-specific public identity remains.' >&2
+            exit 1
+          fi
+
           if grep -RniE --binary-files=without-match \
             --exclude-dir=.git --exclude-dir=.github --exclude='site.example.php' \
-            '(XLX026 Brasil|BR-XLX026|XLX026-[A-Z]|XRF026|YSF72426|PU2PNY|xlx026\.net|Santa[[:space:]]+Isabel|BEGIN[[:space:]]+(RSA|OPENSSH|EC)[[:space:]]+PRIVATE[[:space:]]+KEY|authorization:[[:space:]]*bearer|xlx-unified-voice|crossmode|transcod|CONTROL_PORT[^0-9]*10100)' \
-            . > "$tmp/public-audit.txt" 2>/dev/null; then
-            cat "$tmp/public-audit.txt" >&2
-            echo 'ERROR: production-specific/private material remains.' >&2
+            '(BEGIN[[:space:]]+(RSA|OPENSSH|EC)[[:space:]]+PRIVATE[[:space:]]+KEY|authorization:[[:space:]]*bearer|xlx-unified-voice|crossmode|transcod|CONTROL_PORT[^0-9]*10100)' \
+            . > "$tmp/public-secret-audit.txt" 2>/dev/null; then
+            cat "$tmp/public-secret-audit.txt" >&2
+            echo 'ERROR: private/server-only material remains.' >&2
             exit 1
           fi
 
