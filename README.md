@@ -2,7 +2,7 @@
 
 Standalone modern web dashboard for XLX/xlxd reflectors.
 
-This repository contains only the dashboard and its dashboard-specific installation helpers. It is intended to be safe for public distribution and does not contain a private server configuration, credentials, reflector-specific operational data, xlxd source code, CrossMode code, or the full XLX server installer.
+This repository contains only the dashboard and its dashboard-specific installation helpers. It is intended to be safe for public distribution and does not contain a private server configuration, credentials, reflector-specific operational data, xlxd source code, server-side experimental extensions, or the full XLX server installer.
 
 ## Features
 
