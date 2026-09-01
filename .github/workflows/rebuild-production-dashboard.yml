@@ -35,14 +35,12 @@ jobs:
             --exclude='README.md' \
             "$tmp/source/dashboard/" ./
 
-          # Production-only/private files must never be part of the standalone public dashboard.
           rm -f config/site.php
           rm -f assets/logo-xlx026.jpeg
           rm -f support.php suporte.php support-native.php support-publicacao.zip
           rm -f assets/support-native.css assets/support-native.js
           rm -f assets/support-activity.css assets/support-activity.js
 
-          # Preserve accessibility behavior while removing the production-specific filename.
           if [ -f assets/xlx026-accessibility.css ]; then
             mv assets/xlx026-accessibility.css assets/xlx-accessibility.css
           fi
@@ -88,9 +86,7 @@ jobs:
           ]
 
           for path in root.rglob('*'):
-              if not path.is_file() or path.suffix.lower() not in exts:
-                  continue
-              if '.git' in path.parts:
+              if not path.is_file() or path.suffix.lower() not in exts or '.git' in path.parts:
                   continue
               try:
                   text = path.read_text(encoding='utf-8')
@@ -101,7 +97,6 @@ jobs:
                   text = rx.sub(value, text)
               for rx in support_lines:
                   text = rx.sub('', text)
-              # Repository footer/source links must point to the standalone project.
               text = text.replace('https://github.com/PU2PNY/XLX-Modern-Installer/tree/dashboard-only', 'https://github.com/PU2PNY/XLX-Modern-Dashboard')
               text = text.replace('https://github.com/PU2PNY/XLX-Modern-Installer/tree/main/dashboard', 'https://github.com/PU2PNY/XLX-Modern-Dashboard')
               if text != original:
@@ -119,6 +114,9 @@ jobs:
               manifest.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
           PY
 
+          # Remove the production reflector number used only as an installer-format example.
+          sed -i 's/example XLX026/example XLX123/g; s/exemplo XLX026/exemplo XLX123/g' install/install-dashboard.sh
+
           mkdir -p config
           cat > config/.gitignore <<'EOF'
           site.php
@@ -128,7 +126,6 @@ jobs:
           *.secret.php
           EOF
 
-          # The source snapshot already includes the generic six-language installer and placeholder renderer.
           chmod 755 install/install-dashboard.sh
 
           cat > README.md <<'EOF'
@@ -136,7 +133,7 @@ jobs:
 
           Standalone public web dashboard for XLX/xlxd reflectors.
 
-          This repository contains only the dashboard and its dashboard-specific installer. The code was restored from a preserved production-derived dashboard snapshot and sanitized for public distribution without carrying reflector-specific operational data.
+          This repository contains only the dashboard and its dashboard-specific installer. It was restored from a preserved production-derived dashboard snapshot and sanitized so reflector-specific operational data is not distributed.
 
           ## Included
 
@@ -153,15 +150,13 @@ jobs:
 
           ## Configuration
 
-          The repository ships only with generic source placeholders and `config/site.example.php`.
-
-          A real installation creates `config/site.php` locally. That file is ignored by Git and must not be committed.
+          The repository ships with generic source placeholders and `config/site.example.php`. A real installation creates `config/site.php` locally; that file is ignored by Git and must not be committed.
 
           ```bash
           sudo bash install/install-dashboard.sh
           ```
 
-          You can preselect a dashboard language, for example:
+          To preselect a dashboard language:
 
           ```bash
           sudo bash install/install-dashboard.sh --lang=en
@@ -169,20 +164,12 @@ jobs:
 
           ## Public-release boundary
 
-          This repository intentionally does **not** contain:
-
-          - private server configuration or credentials
-          - real databases, logs, sessions, backups or TLS private material
-          - private administration/control pages
-          - xlxd source/binaries or the full XLX server installer
-          - CrossMode/transcoding/unified-voice code
-          - production APRS/D-PRS credentials or operator data
+          This repository intentionally excludes private server configuration, credentials, databases, logs, sessions, backups, TLS private material, private administration/control pages, xlxd binaries/source, full-server installation components, server-side audio conversion components, and production APRS/D-PRS credentials or operator data.
 
           APRS/D-PRS and certificate services may require their own separately installed backend/module when used by a deployment.
           EOF
 
-          # Do not retain the one-time migration workflow in the resulting source tree.
-          rm -f .github/workflows/rebuild-production-dashboard.yml
+          rm -f .github/workflows/*.yml .github/workflows/*.yaml
           rmdir .github/workflows 2>/dev/null || true
           rmdir .github 2>/dev/null || true
 
@@ -203,7 +190,6 @@ jobs:
               -name '*.zip' -o -name '*.tar' -o -name '*.tar.gz' -o -name '*.tgz' \
             \) -print | grep -q .; then
             echo 'ERROR: sensitive/runtime artifact found in public tree.' >&2
-            find . -path './.git' -prune -o -type f \( -name '.env*' -o -name '*.secret.php' -o -name '*.key' -o -name '*.pem' -o -name '*.db' -o -name '*.sqlite*' -o -name '*.log' -o -name '*.bak' -o -name '*.zip' -o -name '*.tar*' \) -print >&2
             exit 1
           fi
 
@@ -222,9 +208,5 @@ jobs:
           git config user.name 'PU2PNY'
           git config user.email '47339656+PU2PNY@users.noreply.github.com'
           git add -A
-          if git diff --cached --quiet; then
-            echo 'No changes required.'
-            exit 0
-          fi
           git commit -m 'feat: restore full production-derived dashboard for public release'
           git push origin HEAD:main
