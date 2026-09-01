@@ -1,0 +1,230 @@
+name: Rebuild standalone dashboard from preserved production snapshot
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/rebuild-production-dashboard.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout destination
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Restore full production-derived dashboard and sanitize public identity
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          SOURCE_COMMIT='699fdb26fa6c921b5535cb474ff6c664ac57b59c'
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+
+          git clone --filter=blob:none https://github.com/PU2PNY/XLX-Modern-Installer.git "$tmp/source"
+          git -C "$tmp/source" checkout --detach "$SOURCE_COMMIT"
+
+          rsync -a --delete \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='README.md' \
+            "$tmp/source/dashboard/" ./
+
+          # Production-only/private files must never be part of the standalone public dashboard.
+          rm -f config/site.php
+          rm -f assets/logo-xlx026.jpeg
+          rm -f support.php suporte.php support-native.php support-publicacao.zip
+          rm -f assets/support-native.css assets/support-native.js
+          rm -f assets/support-activity.css assets/support-activity.js
+
+          # Preserve accessibility behavior while removing the production-specific filename.
+          if [ -f assets/xlx026-accessibility.css ]; then
+            mv assets/xlx026-accessibility.css assets/xlx-accessibility.css
+          fi
+          if [ -f assets/xlx026-accessibility.js ]; then
+            mv assets/xlx026-accessibility.js assets/xlx-accessibility.js
+          fi
+
+          cat > assets/logo-reflector.svg <<'SVG'
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+            <title id="title">XLX Reflector</title>
+            <desc id="desc">Generic logo for an XLX amateur radio reflector</desc>
+            <rect width="512" height="512" rx="96" fill="#071925"/>
+            <circle cx="256" cy="256" r="166" fill="none" stroke="#28c6f7" stroke-width="18"/>
+            <path d="M150 256h212M256 150v212" stroke="#28c6f7" stroke-width="14" stroke-linecap="round" opacity=".55"/>
+            <text x="256" y="286" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="92" font-weight="700" fill="#ffffff">XLX</text>
+          </svg>
+          SVG
+
+          python3 - <<'PY'
+          import json, re
+          from pathlib import Path
+
+          root = Path('.')
+          exts = {'.php','.html','.htm','.js','.jsx','.ts','.tsx','.css','.scss','.json','.xml','.md','.txt','.yml','.yaml','.conf','.ini','.webmanifest'}
+          replacements = [
+              (re.compile(r'assets/logo-xlx026\.jpeg', re.I), 'assets/logo-reflector.svg'),
+              (re.compile(r'xlx026-accessibility', re.I), 'xlx-accessibility'),
+              (re.compile(r'XLX026D?', re.I), '{{REFLECTOR_NAME}}'),
+              (re.compile(r'XRF026', re.I), 'XRF{{REFLECTOR_NUMBER}}'),
+              (re.compile(r'PU2PNY', re.I), '{{SYSOP_CALLSIGN}}'),
+              (re.compile(r'xlx026\.net', re.I), '{{REFLECTOR_DOMAIN}}'),
+              (re.compile(r'Santa\s+Isabel\s*(?:[-–—]\s*)?SP', re.I), '{{LOCATION}}'),
+              (re.compile(r'https?://t\.me/xlx026_connection_state', re.I), ''),
+              (re.compile(r'xlx026_reflectors_cache_v1', re.I), 'xlx_reflectors_cache_v1'),
+              (re.compile(r'xlx026_pwa_install_decision_v1', re.I), 'xlx_pwa_install_decision_v1'),
+              (re.compile(r'YSF72426', re.I), 'YSF{{YSF_ID}}'),
+              (re.compile(r'BR-\{\{REFLECTOR_NAME\}\}', re.I), '{{REFLECTOR_NAME}}'),
+          ]
+          support_lines = [
+              re.compile(r'(?im)^.*href\s*=\s*["\'][^"\']*(?:suporte|support)[^"\']*["\'].*$\n?'),
+              re.compile(r'(?im)^.*>\s*(?:suporte|support)\s*<.*$\n?'),
+              re.compile(r'(?im)^.*["\'](?:label|title|name|text)["\']\s*(?:=>|:)\s*["\'](?:suporte|support)["\'].*$\n?'),
+          ]
+
+          for path in root.rglob('*'):
+              if not path.is_file() or path.suffix.lower() not in exts:
+                  continue
+              if '.git' in path.parts:
+                  continue
+              try:
+                  text = path.read_text(encoding='utf-8')
+              except UnicodeDecodeError:
+                  continue
+              original = text
+              for rx, value in replacements:
+                  text = rx.sub(value, text)
+              for rx in support_lines:
+                  text = rx.sub('', text)
+              # Repository footer/source links must point to the standalone project.
+              text = text.replace('https://github.com/PU2PNY/XLX-Modern-Installer/tree/dashboard-only', 'https://github.com/PU2PNY/XLX-Modern-Dashboard')
+              text = text.replace('https://github.com/PU2PNY/XLX-Modern-Installer/tree/main/dashboard', 'https://github.com/PU2PNY/XLX-Modern-Dashboard')
+              if text != original:
+                  path.write_text(text, encoding='utf-8')
+
+          manifest = root / 'site.webmanifest'
+          if manifest.exists():
+              try:
+                  data = json.loads(manifest.read_text(encoding='utf-8'))
+              except Exception:
+                  data = {}
+              data['name'] = '{{REFLECTOR_TITLE}}'
+              data['short_name'] = '{{REFLECTOR_NAME}}'
+              data['description'] = '{{REFLECTOR_DESCRIPTION}}'
+              manifest.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          PY
+
+          mkdir -p config
+          cat > config/.gitignore <<'EOF'
+          site.php
+          .env
+          .env.*
+          *.local.php
+          *.secret.php
+          EOF
+
+          # The source snapshot already includes the generic six-language installer and placeholder renderer.
+          chmod 755 install/install-dashboard.sh
+
+          cat > README.md <<'EOF'
+          # XLX Modern Dashboard
+
+          Standalone public web dashboard for XLX/xlxd reflectors.
+
+          This repository contains only the dashboard and its dashboard-specific installer. The code was restored from a preserved production-derived dashboard snapshot and sanitized for public distribution without carrying reflector-specific operational data.
+
+          ## Included
+
+          - Live transmissions and recent activity
+          - Connected stations and module views
+          - XLX reflector directory
+          - Activity ranking
+          - Amateur-radio news and propagation/weather widgets
+          - Accessibility controls
+          - PWA/offline assets
+          - ANATEL practice/simulation page contained in the preserved dashboard snapshot
+          - Portuguese (Brazil), English, Spanish, French, German and Italian dashboard translations
+          - Generic per-reflector installer and placeholder renderer
+
+          ## Configuration
+
+          The repository ships only with generic source placeholders and `config/site.example.php`.
+
+          A real installation creates `config/site.php` locally. That file is ignored by Git and must not be committed.
+
+          ```bash
+          sudo bash install/install-dashboard.sh
+          ```
+
+          You can preselect a dashboard language, for example:
+
+          ```bash
+          sudo bash install/install-dashboard.sh --lang=en
+          ```
+
+          ## Public-release boundary
+
+          This repository intentionally does **not** contain:
+
+          - private server configuration or credentials
+          - real databases, logs, sessions, backups or TLS private material
+          - private administration/control pages
+          - xlxd source/binaries or the full XLX server installer
+          - CrossMode/transcoding/unified-voice code
+          - production APRS/D-PRS credentials or operator data
+
+          APRS/D-PRS and certificate services may require their own separately installed backend/module when used by a deployment.
+          EOF
+
+          # Do not retain the one-time migration workflow in the resulting source tree.
+          rm -f .github/workflows/rebuild-production-dashboard.yml
+          rmdir .github/workflows 2>/dev/null || true
+          rmdir .github 2>/dev/null || true
+
+          echo '--- PUBLIC RELEASE VALIDATION ---'
+          test ! -e config/site.php
+          test ! -e assets/logo-xlx026.jpeg
+          test -e assets/logo-reflector.svg
+          test ! -e assets/xlx026-accessibility.css
+          test ! -e assets/xlx026-accessibility.js
+          test -e assets/xlx-accessibility.css
+          test -e assets/xlx-accessibility.js
+
+          if find . -path './.git' -prune -o -type f \( \
+              -name '.env' -o -name '.env.*' -o -name '*.secret.php' -o \
+              -name '*.key' -o -name '*.pem' -o -name '*.p12' -o -name '*.pfx' -o \
+              -name '*.db' -o -name '*.sqlite' -o -name '*.sqlite3' -o \
+              -name '*.log' -o -name '*.bak' -o -name '*.backup' -o \
+              -name '*.zip' -o -name '*.tar' -o -name '*.tar.gz' -o -name '*.tgz' \
+            \) -print | grep -q .; then
+            echo 'ERROR: sensitive/runtime artifact found in public tree.' >&2
+            find . -path './.git' -prune -o -type f \( -name '.env*' -o -name '*.secret.php' -o -name '*.key' -o -name '*.pem' -o -name '*.db' -o -name '*.sqlite*' -o -name '*.log' -o -name '*.bak' -o -name '*.zip' -o -name '*.tar*' \) -print >&2
+            exit 1
+          fi
+
+          if grep -RniE --binary-files=without-match \
+            --exclude-dir=.git --exclude='site.example.php' \
+            '(XLX026|XRF026|PU2PNY|xlx026\.net|Santa[[:space:]]+Isabel|BEGIN[[:space:]]+(RSA|OPENSSH|EC)[[:space:]]+PRIVATE[[:space:]]+KEY|authorization:[[:space:]]*bearer|xlx-unified-voice|crossmode|transcod|CONTROL_PORT[^0-9]*10100)' \
+            . > "$tmp/public-audit.txt" 2>/dev/null; then
+            cat "$tmp/public-audit.txt" >&2
+            echo 'ERROR: production-specific/private material remains.' >&2
+            exit 1
+          fi
+
+          find . -type f -name '*.php' -print0 | xargs -0 -r -n1 php -l >/dev/null
+          find install -maxdepth 1 -type f -name '*.sh' -print0 | xargs -0 -r -n1 bash -n
+
+          git config user.name 'PU2PNY'
+          git config user.email '47339656+PU2PNY@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No changes required.'
+            exit 0
+          fi
+          git commit -m 'feat: restore full production-derived dashboard for public release'
+          git push origin HEAD:main
