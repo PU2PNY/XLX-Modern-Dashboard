@@ -1,0 +1,74 @@
+name: Finalize standalone dashboard routes
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/finalize-dashboard-routes.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Wire restored public pages and validate
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('index.php')
+          s=p.read_text(encoding='utf-8')
+          needle="""<?php if ($page === 'certificado'): ?>
+<link rel=\"stylesheet\" href=\"assets/certificado.css?v=20260809_01\">
+<?php endif; ?>"""
+          replacement=needle+"""
+<?php if ($page === 'suporte'): ?>
+<link rel=\"stylesheet\" href=\"assets/support-native.css?v=20260901_public\">
+<?php endif; ?>"""
+          if 'assets/support-native.css?v=20260901_public' not in s:
+              if needle not in s:
+                  raise SystemExit('certificate stylesheet anchor not found')
+              s=s.replace(needle,replacement,1)
+          p.write_text(s,encoding='utf-8')
+          PY
+
+          required=(
+            index.php support-native.php assets/support-native.css assets/support-native.js
+            certificado-view.php certificado-config.php certificado-validar.php
+            api/certificado.php assets/certificado.css assets/certificado.js
+            ranking-v2-view.php simulado-anatel-view.php
+            digital-lab-native.php
+          )
+          for f in "${required[@]}"; do
+            test -f "$f" || { echo "Missing required dashboard file: $f" >&2; exit 1; }
+          done
+
+          php -l index.php
+          php -l support-native.php
+          php -l certificado-view.php
+          php -l certificado-config.php
+          php -l certificado-validar.php
+          php -l api/certificado.php
+          php -l ranking-v2-view.php
+          php -l simulado-anatel-view.php
+          php -l digital-lab-native.php
+
+          ! grep -RniE --binary-files=without-match --exclude-dir=.git --exclude-dir=.github \
+            '(XLX026 Brasil|BR-XLX026|XLX026-[A-Z]|XRF026|YSF72426|PU2PNY|xlx026\.net|Santa[[:space:]]+Isabel|chat\.whatsapp\.com|facebook\.com/xlx026|t\.me/xlx026)' .
+
+          ! find . -path './.git' -prune -o -type f \( \
+            -name '.env' -o -name '.env.*' -o -name '*.key' -o -name '*.pem' -o \
+            -name '*.p12' -o -name '*.pfx' -o -name '*.db' -o -name '*.sqlite' -o \
+            -name '*.sqlite3' -o -name '*.log' -o -name '*.bak' -o -name '*.backup' \
+          \) -print | grep -q .
+
+          git config user.name 'PU2PNY'
+          git config user.email '47339656+PU2PNY@users.noreply.github.com'
+          git add index.php
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'fix: wire restored support and certificate pages'
+          git push origin HEAD:main
