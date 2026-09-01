@@ -37,7 +37,7 @@ $genericMessage = static function (string $text): string {
     return str_replace('{{REFLECTOR_NAME}} Brasil', '{{REFLECTOR_NAME}}', $text);
 };
 
-$allowedExtensions = ['php', 'js', 'css', 'html', 'htm', 'json', 'webmanifest'];
+$allowedExtensions = ['php', 'js', 'html', 'htm', 'json', 'webmanifest'];
 $excludedParts = [
     DIRECTORY_SEPARATOR . 'i18n' . DIRECTORY_SEPARATOR,
     DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'site.php',
@@ -134,9 +134,6 @@ foreach ($iterator as $fileInfo) {
         $contents = str_replace("toLocaleTimeString('pt-BR'", "toLocaleTimeString('{$htmlLocale}'", $contents, $dateLocaleCount);
         $contents = str_replace('toLocaleTimeString("pt-BR"', 'toLocaleTimeString("' . $htmlLocale . '"', $contents, $dateLocaleCount2);
         $dateLocaleCount += $dateLocaleCount2;
-        $contents = str_replace("toLocaleString('pt-BR'", "toLocaleString('{$htmlLocale}'", $contents, $dateLocaleCount3);
-        $contents = str_replace('toLocaleString("pt-BR"', 'toLocaleString("' . $htmlLocale . '"', $contents, $dateLocaleCount4);
-        $dateLocaleCount += $dateLocaleCount3 + $dateLocaleCount4;
     }
 
     $contents = strtr($contents, $routeRestore);

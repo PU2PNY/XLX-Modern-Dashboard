@@ -1,4 +1,4 @@
-/* Widget MTR individual do XLX026 */
+/* Widget MTR individual do {{REFLECTOR_NAME}} */
 
 .tx-mtr-stack {
     display: flex;
@@ -185,7 +185,7 @@
 }
 
 /* ==========================================================
-   XLX026 MTR — fonte ampliada v2
+   {{REFLECTOR_NAME}} MTR — fonte ampliada v2
    ========================================================== */
 
 .mtr-mini {
@@ -262,7 +262,7 @@
 }
 
 /* ==========================================================
-   XLX026 MTR — visual com siglas v3
+   {{REFLECTOR_NAME}} MTR — visual com siglas v3
    ========================================================== */
 
 .mtr-mini {
@@ -564,7 +564,7 @@
 }
 
 /* ==========================================================
-   XLX026 MTR — layout organizado v4
+   {{REFLECTOR_NAME}} MTR — layout organizado v4
    ========================================================== */
 
 .mtr-mini {

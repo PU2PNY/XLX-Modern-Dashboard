@@ -1,6 +1,6 @@
 /*
  * ==========================================================
- * XLX026 — MTR EMBED V5
+ * {{REFLECTOR_NAME}} — MTR EMBED V5
  *
  * Função:
  * colocar o MTR real dentro da área técnica do card TX,

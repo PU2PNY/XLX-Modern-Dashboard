@@ -1,5 +1,5 @@
 /* ==========================================================
-   XLX026 — STANDBY DENTRO DO BOX V3.1
+   {{REFLECTOR_NAME}} — STANDBY DENTRO DO BOX V3.1
    Refino visual:
    - box da última transmissão sobe e ganha destaque
    - aviso fica mais integrado
@@ -157,10 +157,10 @@ html body[data-page="ao-vivo"]
 /* alternância das mensagens */
 @keyframes xlx026StandbyInsideAdvice{
     0%,49%{
-        content:"⚠ DMR — Priorize o rádio • Aplicativos são uma alternativa complementar, não o meio preferencial.";
+        content:"⚠  DMR — Priorize o rádio • Aplicativos são uma alternativa complementar, não o meio preferencial.";
     }
     50%,99%{
-        content:"⚠ Áudio do aplicativo • Mantenha o volume do app sempre baixo para evitar áudio excessivo ou distorcido.";
+        content:"⚠  Áudio do aplicativo • Mantenha o volume do app sempre baixo para evitar áudio excessivo ou distorcido.";
     }
 }
 
@@ -244,4 +244,4 @@ html body[data-page="ao-vivo"]
     }
 }
 
-/* FIM XLX026 — STANDBY DENTRO DO BOX V3.1 */
+/* FIM {{REFLECTOR_NAME}} — STANDBY DENTRO DO BOX V3.1 */
