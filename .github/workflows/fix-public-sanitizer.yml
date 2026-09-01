@@ -1,45 +1,10 @@
-name: Fix public sanitizer
+name: Sanitizer helper completed
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/fix-public-sanitizer.yml'
-
-permissions:
-  contents: write
+  workflow_dispatch:
 
 jobs:
-  fix:
+  completed:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Patch sanitizer without changing dashboard behavior
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-          p=Path('.github/workflows/rebuild-production-dashboard.yml')
-          s=p.read_text(encoding='utf-8')
-          old="              (re.compile(r'XLX026D?', re.I), '{{REFLECTOR_NAME}}'),"
-          new="""              (re.compile(r'XLX026 Brasil'), '{{REFLECTOR_TITLE}}'),
-              (re.compile(r'BR-XLX026'), '{{REFLECTOR_NAME}}'),
-              (re.compile(r'XLX026-D'), '{{REFLECTOR_NAME}}-D'),
-              (re.compile(r'XLX026-C'), '{{REFLECTOR_NAME}}-C'),
-              (re.compile(r'XLX026D\\b'), '{{REFLECTOR_NAME}}'),
-              (re.compile(r'\\bXLX026\\b'), '{{REFLECTOR_NAME}}'),"""
-          if old not in s:
-              raise SystemExit('expected genericizer rule not found')
-          s=s.replace(old,new)
-          oldaudit="(XLX026|XRF026|PU2PNY|xlx026\\.net|Santa[[:space:]]+Isabel|BEGIN[[:space:]]+(RSA|OPENSSH|EC)[[:space:]]+PRIVATE[[:space:]]+KEY|authorization:[[:space:]]*bearer|xlx-unified-voice|crossmode|transcod|CONTROL_PORT[^0-9]*10100)"
-          newaudit="(XLX026 Brasil|BR-XLX026|XLX026-[A-Z]|XRF026|YSF72426|PU2PNY|xlx026\\.net|Santa[[:space:]]+Isabel|BEGIN[[:space:]]+(RSA|OPENSSH|EC)[[:space:]]+PRIVATE[[:space:]]+KEY|authorization:[[:space:]]*bearer|xlx-unified-voice|crossmode|transcod|CONTROL_PORT[^0-9]*10100)"
-          if oldaudit not in s:
-              raise SystemExit('expected audit rule not found')
-          p.write_text(s.replace(oldaudit,newaudit),encoding='utf-8')
-          PY
-          git config user.name 'PU2PNY'
-          git config user.email '47339656+PU2PNY@users.noreply.github.com'
-          git add .github/workflows/rebuild-production-dashboard.yml
-          git commit -m 'fix: sanitize reflector identity without touching internal code names'
-          git push origin HEAD:main
+      - run: echo 'Temporary sanitizer helper is no longer required.'
