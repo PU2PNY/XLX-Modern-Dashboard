@@ -1,259 +1,383 @@
-(() => {
+(function () {
     'use strict';
 
-    const currentPage =
-        document.body?.dataset?.page || '';
+    /*
+     * XLX026 — ALERTA CERTIFICADO ESPECIAL
+     *
+     * - somente campanhas especiais
+     * - reaparece até o visitante confirmar que já baixou
+     * - controle individual por campanha e por data
+     * - nova data especial reaparece para todos
+     * - nova campanha aparece imediatamente
+     * - nunca aparece dentro de /certificado
+     * - botão sempre abre:
+     *   https://{{DOMAIN}}/certificado
+     */
 
-    if (currentPage === 'certificado') {
-        return;
-    }
-
-    const endpoint =
+    const API =
         '/api/certificado.php?acao=campanha';
 
-    const prefix =
-        'xlx026CertSpecialSeen:';
+    const TARGET =
+        'https://{{DOMAIN}}/certificado';
 
-    function hasSeen(id) {
+
+    function isCertificatePage() {
+        const path = window.location.pathname.replace(/\/+$/, '');
+        const params = new URLSearchParams(window.location.search);
+        return (
+            path === '/certificado'
+            || params.get('page') === 'certificado'
+        );
+    }
+
+    /* XLX026_CERT_ALERT_CONFIRM_DOWNLOAD_V1 */
+    const PREFIX =
+        'xlx026-cert-special-completed-v2:';
+
+    function editionId(campaign) {
+        const parts = [
+            campaign.id || 'especial',
+            campaign.date || '',
+            campaign.start_date || campaign.starts_at || '',
+            campaign.end_date || campaign.ends_at || '',
+            campaign.period_label || '',
+            campaign.title || ''
+        ];
+
+        return encodeURIComponent(
+            parts.map(String).join('|')
+        );
+    }
+
+    function keyFor(campaign) {
+        return PREFIX + editionId(campaign);
+    }
+
+    function alreadyDownloaded(campaign) {
         try {
-            return Boolean(
-                localStorage.getItem(
-                    prefix + id
-                )
-            );
+            return Number(
+                localStorage.getItem(keyFor(campaign)) || 0
+            ) > 0;
         } catch (_) {
-            return true;
+            return false;
         }
     }
 
-    function setSeen(id) {
+    function rememberDownloaded(campaign) {
         try {
             localStorage.setItem(
-                prefix + id,
+                keyFor(campaign),
                 String(Date.now())
             );
-        } catch (_) {}
-    }
-
-    function element(
-        tag,
-        className,
-        text
-    ) {
-        const el =
-            document.createElement(tag);
-
-        if (className) {
-            el.className =
-                className;
+        } catch (_) {
         }
+    }
 
-        if (text !== undefined) {
-            el.textContent =
-                text;
+    function cleanupOldKeys() {
+        try {
+            const limit = Date.now() - (730 * 24 * 60 * 60 * 1000);
+            for (let i = localStorage.length - 1; i >= 0; i--) {
+                const key = localStorage.key(i);
+                if (!key || !key.startsWith(PREFIX)) continue;
+                const value = Number(localStorage.getItem(key));
+                if (!Number.isFinite(value) || value < limit) {
+                    localStorage.removeItem(key);
+                }
+            }
+        } catch (_) {
         }
-
-        return el;
     }
 
-    function installPopupOpen() {
-        const overlay =
-            document.getElementById(
-                'xlxInstallOverlay'
-            );
-
-        return Boolean(
-            overlay
-            && overlay.classList.contains(
-                'is-visible'
-            )
-        );
-    }
-
-    function render(campaign) {
-
+    function installStyle() {
         if (
-            !campaign
-            || campaign.special !== true
-            || !campaign.id
-            || hasSeen(campaign.id)
+            document.getElementById(
+                'xlx026-cert-alert-style'
+            )
         ) {
             return;
         }
+
+        const style =
+            document.createElement('style');
+
+        style.id =
+            'xlx026-cert-alert-style';
+
+        style.textContent = `
+            #xlx026-cert-alert {
+                position: fixed;
+                inset: 0;
+                z-index: 2147483000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 18px;
+                background: rgba(3,17,37,.62);
+                backdrop-filter: blur(5px);
+            }
+
+            #xlx026-cert-alert .xlx-alert-card {
+                position: relative;
+                width: min(470px, calc(100vw - 32px));
+                padding: 27px 24px 23px;
+                border: 2px solid #c99a34;
+                border-radius: 22px;
+                background:
+                    linear-gradient(
+                        145deg,
+                        #ffffff 0%,
+                        #f7f9fc 100%
+                    );
+                box-shadow:
+                    0 25px 75px rgba(0,0,0,.32);
+                text-align: center;
+                font-family: Arial, sans-serif;
+            }
+
+            #xlx026-cert-alert .xlx-alert-special {
+                display: inline-block;
+                margin-bottom: 10px;
+                color: #b88519;
+                font-size: 11px;
+                font-weight: 900;
+                letter-spacing: .12em;
+            }
+
+            #xlx026-cert-alert h2 {
+                margin: 0 0 10px;
+                color: #071b3b;
+                font-size: 24px;
+                line-height: 1.18;
+            }
+
+            #xlx026-cert-alert p {
+                margin: 0 auto 10px;
+                max-width: 395px;
+                color: #566779;
+                font-size: 14px;
+                line-height: 1.5;
+            }
+
+            #xlx026-cert-alert .xlx-alert-date {
+                display: block;
+                margin: 13px 0 19px;
+                color: #071b3b;
+                font-size: 13px;
+                font-weight: 900;
+            }
+
+            #xlx026-cert-alert .xlx-alert-question {
+                margin-top: 14px;
+                color: #071b3b;
+                font-weight: 800;
+            }
+
+            #xlx026-cert-alert .xlx-alert-actions {
+                display: flex;
+                justify-content: center;
+                gap: 10px;
+                flex-wrap: wrap;
+            }
+
+            #xlx026-cert-alert .xlx-alert-open {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 45px;
+                padding: 0 21px;
+                border: 2px solid #c99a34;
+                border-radius: 999px;
+                background: #071b3b;
+                color: #ffffff;
+                text-decoration: none;
+                font-size: 14px;
+                font-weight: 900;
+            }
+
+            #xlx026-cert-alert .xlx-alert-close {
+                min-height: 45px;
+                padding: 0 19px;
+                border: 1px solid #cbd3dc;
+                border-radius: 999px;
+                background: #ffffff;
+                color: #526275;
+                font-size: 14px;
+                font-weight: 800;
+                cursor: pointer;
+            }
+
+            @media (max-width: 520px) {
+                #xlx026-cert-alert {
+                    padding: 13px;
+                }
+
+                #xlx026-cert-alert .xlx-alert-card {
+                    padding: 23px 17px 20px;
+                }
+
+                #xlx026-cert-alert h2 {
+                    font-size: 21px;
+                }
+            }
+        `;
+
+        document.head.appendChild(style);
+    }
+
+    function closeAlert() {
+        const alert =
+            document.getElementById(
+                'xlx026-cert-alert'
+            );
+
+        if (alert) {
+            alert.remove();
+        }
+    }
+
+    function showAlert(campaign) {
+        if (
+            document.getElementById(
+                'xlx026-cert-alert'
+            )
+        ) {
+            return;
+        }
+
+        installStyle();
+
+        const overlay =
+            document.createElement('div');
+
+        overlay.id =
+            'xlx026-cert-alert';
+
+        overlay.setAttribute(
+            'role',
+            'dialog'
+        );
+
+        overlay.setAttribute(
+            'aria-modal',
+            'true'
+        );
 
         const card =
-            element(
-                'aside',
-                'xlx-cert-special-alert'
-            );
+            document.createElement('div');
 
-        card.setAttribute(
-            'role',
-            'status'
-        );
+        card.className =
+            'xlx-alert-card';
 
-        card.setAttribute(
-            'aria-live',
-            'polite'
-        );
+        const special =
+            document.createElement('div');
 
-        const inner =
-            element(
-                'div',
-                'xlx-cert-special-inner'
-            );
+        special.className =
+            'xlx-alert-special';
 
-        const close =
-            element(
-                'button',
-                'xlx-cert-special-close',
-                '×'
-            );
-
-        close.type = 'button';
-
-        close.setAttribute(
-            'aria-label',
-            'Fechar aviso'
-        );
-
-        const kicker =
-            element(
-                'span',
-                'xlx-cert-special-kicker',
-                'CERTIFICADO ESPECIAL DISPONÍVEL'
-            );
+        special.textContent =
+            'CERTIFICADO • EDIÇÃO ESPECIAL';
 
         const title =
-            element(
-                'h2',
-                '',
-                campaign.title
-            );
+            document.createElement('h2');
 
-        const description =
-            element(
-                'p',
-                '',
-                campaign.subtitle
-            );
+        title.textContent =
+            campaign.title
+            || 'Certificado especial XLX026';
 
-        const period =
-            element(
-                'span',
-                'xlx-cert-special-period',
-                'Período: '
-                + campaign.period_label
-            );
+        const subtitle =
+            document.createElement('p');
 
-        const actions =
-            element(
-                'div',
-                'xlx-cert-special-actions'
-            );
+        subtitle.textContent =
+            campaign.subtitle
+            || 'Uma edição especial está disponível no XLX026 Brasil.';
 
-        const button =
-            element(
-                'a',
-                'xlx-cert-special-button',
-                'Gerar meu certificado'
-            );
+        const date =
+            document.createElement('span');
 
-        button.href =
-            '/?page=certificado';
+        date.className =
+            'xlx-alert-date';
 
-        const note =
-            element(
-                'span',
-                'xlx-cert-special-note',
-                'Edição comemorativa {{REFLECTOR_TITLE}}'
-            );
+        date.textContent =
+            campaign.period_label || '';
 
-        close.addEventListener(
+        const question = document.createElement('p');
+        question.className = 'xlx-alert-question';
+        question.textContent = 'Você já baixou seu certificado desta edição especial?';
+
+        const actions = document.createElement('div');
+        actions.className = 'xlx-alert-actions';
+
+        const yes = document.createElement('button');
+        yes.type = 'button';
+        yes.className = 'xlx-alert-open';
+        yes.textContent = 'Sim, já baixei';
+        yes.addEventListener('click', function () {
+            rememberDownloaded(campaign);
+            closeAlert();
+        });
+
+        const no = document.createElement('a');
+        no.className = 'xlx-alert-close';
+        no.href = TARGET;
+        no.textContent = 'Não, gerar agora';
+
+        actions.appendChild(yes);
+        actions.appendChild(no);
+
+        card.appendChild(special);
+        card.appendChild(title);
+        card.appendChild(subtitle);
+
+        if (date.textContent) {
+            card.appendChild(date);
+        }
+
+        card.appendChild(question);
+        card.appendChild(actions);
+        overlay.appendChild(card);
+
+        overlay.addEventListener(
             'click',
-            () => {
-
-                card.classList.remove(
-                    'visible'
-                );
-
-                setTimeout(
-                    () => card.remove(),
-                    350
-                );
+            function (event) {
+                if (event.target === overlay) {
+                    closeAlert();
+                }
             }
         );
 
-        actions.append(
-            button,
-            note
-        );
+        document.addEventListener(
+            'keydown',
+            function esc(event) {
+                if (event.key === 'Escape') {
+                    closeAlert();
 
-        inner.append(
-            close,
-            kicker,
-            title,
-            description,
-            period,
-            actions
-        );
-
-        card.append(inner);
-
-        document.body.append(card);
-
-        setSeen(campaign.id);
-
-        requestAnimationFrame(
-            () => {
-                requestAnimationFrame(
-                    () => {
-                        card.classList.add(
-                            'visible'
-                        );
-                    }
-                );
+                    document.removeEventListener(
+                        'keydown',
+                        esc
+                    );
+                }
             }
         );
-    }
 
-    function waitForInstall(
-        campaign,
-        attempt = 0
-    ) {
-
-        if (
-            installPopupOpen()
-            && attempt < 120
-        ) {
-            setTimeout(
-                () => waitForInstall(
-                    campaign,
-                    attempt + 1
-                ),
-                500
-            );
-
-            return;
-        }
-
-        if (!installPopupOpen()) {
-            render(campaign);
-        }
+        document.body.appendChild(overlay);
     }
 
     async function start() {
+        if (isCertificatePage()) {
+            return;
+        }
+
+        cleanupOldKeys();
 
         try {
-
             const response =
                 await fetch(
-                    endpoint
-                    + '&_='
-                    + Date.now(),
+                    API + '&_=' + Date.now(),
                     {
                         cache: 'no-store',
-                        credentials: 'same-origin'
+                        headers: {
+                            Accept: 'application/json'
+                        }
                     }
                 );
 
@@ -264,30 +388,46 @@
             const data =
                 await response.json();
 
-            const campaign =
-                data?.campaign
-                || data?.data?.campaign
-                || (
-                    data?.id
-                        ? data
-                        : null
-                );
-
             if (
-                !campaign
-                || campaign.special !== true
-                || !campaign.id
-                || hasSeen(campaign.id)
+                !data
+                ||
+                !data.ok
+                ||
+                !data.campaign
+                ||
+                !data.campaign.special
             ) {
                 return;
             }
 
-            waitForInstall(
-                campaign
-            );
+            const campaign =
+                data.campaign;
 
-        } catch (_) {}
+            if (
+                alreadyDownloaded(campaign)
+            ) {
+                return;
+            }
+
+            showAlert(campaign);
+
+        } catch (_) {
+            /*
+             * Se API/storage falhar,
+             * o painel continua funcionando.
+             */
+        }
     }
 
-    start();
-})();
+    if (
+        document.readyState === 'loading'
+    ) {
+        document.addEventListener(
+            'DOMContentLoaded',
+            start,
+            { once: true }
+        );
+    } else {
+        start();
+    }
+}());

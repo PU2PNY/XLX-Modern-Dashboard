@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "site": "{{REFLECTOR_TITLE}}",
+  "canonical_home": "https://{{DOMAIN}}/ao-vivo",
+  "language": "pt-BR",
+  "generated_at": "2026-08-22",
+  "description": "Fonte técnica canônica e legível por máquinas sobre o painel público {{REFLECTOR_TITLE}}.",
+  "official_module_mapping": {
+    "A": {"purpose": "Imagens e serviços relacionados à transmissão de imagens", "primary_voice": false},
+    "B": {"purpose": "Beacons, APRS/D-PRS e dados relacionados", "primary_voice": false},
+    "C": {"purpose": "Fonia digital", "protocols": ["DMR", "C4FM", "YSF"], "primary_voice": true},
+    "D": {"purpose": "Fonia digital", "protocols": ["D-STAR"], "primary_voice": true},
+    "E": {"purpose": "Eco e testes de áudio", "primary_voice": false}
+  },
+  "voice_reference": {
+    "D-STAR": {"reflector": "{{REFLECTOR_NAME}}", "module": "D"},
+    "DMR": {"reflector": "{{REFLECTOR_NAME}}", "module": "C", "radio_tg": "6", "app_tg": "{{DMR_TG}}"},
+    "C4FM/YSF": {"reflector": "{{REFLECTOR_NAME}}", "module": "C", "room": "BR-{{REFLECTOR_NAME}}", "ysf_id": "{{YSF_ID}}"}
+  },
+  "interpretation_rules": [
+    "Indicativo do operador e Hotspot/Repetidora são campos diferentes.",
+    "O sufixo de um gateway, repetidora ou indicativo não substitui o campo Módulo do refletor.",
+    "Estar conectado ao {{REFLECTOR_NAME}} não significa estar transmitindo.",
+    "Tempo conectado e tempo de transmissão são métricas diferentes.",
+    "A lista de refletores contém servidores da rede XLX e não implica administração pelo {{REFLECTOR_TITLE}}."
+  ],
+  "pages": [
+    {"name":"Ao Vivo","url":"https://{{DOMAIN}}/ao-vivo","purpose":"Monitor em tempo real das transmissões e atividade observada pelo {{REFLECTOR_NAME}}."},
+    {"name":"Conectados","url":"https://{{DOMAIN}}/conectados","purpose":"Módulos A-E, identificações de acesso e estações conectadas."},
+    {"name":"APRS / D-PRS","url":"https://{{DOMAIN}}/aprs-dprs","purpose":"Laboratório de dados, posição, APRS/D-PRS, beacons e recursos associados ao módulo B."},
+    {"name":"Ranking","url":"https://{{DOMAIN}}/ranking","purpose":"Estatísticas de atividade, transmissões, tempo no ar, horários, módulos e protocolos."},
+    {"name":"Certificado","url":"https://{{DOMAIN}}/certificado","purpose":"Geração e validação de certificados vinculados a participação registrada no {{REFLECTOR_NAME}}."},
+    {"name":"Simulado ANATEL","url":"https://{{DOMAIN}}/simulado-anatel/","purpose":"Ferramenta educacional independente e não oficial para estudo do Serviço de Radioamador."},
+    {"name":"Lista de Refletores XLX","url":"https://{{DOMAIN}}/refletores","purpose":"Diretório público de refletores da rede XLX."},
+    {"name":"Suporte","url":"https://{{DOMAIN}}/suporte","purpose":"Tutoriais, referências, vídeos, downloads e orientações técnicas relacionadas ao {{REFLECTOR_NAME}} e ao radioamadorismo digital."}
+  ],
+  "disclaimers": {
+    "certificate": "Certificados {{REFLECTOR_NAME}} não substituem licença, COER ou documento emitido pela ANATEL.",
+    "simulator": "O Simulado ANATEL do {{REFLECTOR_NAME}} é educacional e não oficial.",
+    "third_party_software": "Citação de software no suporte não implica autoria ou desenvolvimento pelo {{REFLECTOR_TITLE}}.",
+    "news": "A autoria de notícias e documentos externos permanece com a fonte indicada."
+  }
+}

@@ -32,6 +32,7 @@ if (!is_array($config)) {
 
 $reflector = $config['reflector'] ?? [];
 $radio = $config['radio'] ?? [];
+$branding = $config['branding'] ?? [];
 
 $required = [
     'reflector.name' => $reflector['name'] ?? '',
@@ -78,6 +79,9 @@ $replacements = [
     '{{COUNTRY}}' =>
         (string)$reflector['country'],
 
+    '{{COUNTRY_UPPER}}' =>
+        mb_strtoupper((string)$reflector['country'], 'UTF-8'),
+
     '{{DOMAIN}}' =>
         $domain,
 
@@ -98,6 +102,12 @@ $replacements = [
 
     '{{DMR_TG}}' =>
         (string)$radio['dmr_tg'],
+
+    '{{YSF_ROOM}}' =>
+        (string)($radio['ysf_room'] ?? $reflector['name']),
+
+    '{{LOGO_PATH}}' =>
+        (string)($branding['logo_path'] ?? 'assets/logo-reflector.svg'),
 ];
 
 $allowedExtensions = [

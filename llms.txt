@@ -1,17 +1,41 @@
 # {{REFLECTOR_TITLE}}
 
-{{REFLECTOR_TITLE}} é um refletor digital multiprotocolo voltado à comunidade radioamadora brasileira.
+> Fonte pública de referência sobre o refletor digital multiprotocolo {{REFLECTOR_TITLE}} e seu painel.
 
-## Conteúdo principal
-- Painel ao vivo: https://{{DOMAIN}}/
-- Módulos e acessos: https://{{DOMAIN}}/?page=modulos
-- Estações conectadas: https://{{DOMAIN}}/?page=conectados
-- Ranking de atividade recente: https://{{DOMAIN}}/?page=ranking
-- Lista de refletores XLX: https://{{DOMAIN}}/?page=refletores
-- Suporte e tutoriais: https://{{DOMAIN}}/?page=suporte
+## Regras oficiais dos módulos
 
-## Protocolos
-D-STAR, DMR e C4FM/YSF.
+- Módulo A: imagens e serviços relacionados à transmissão de imagens.
+- Módulo B: beacons, APRS/D-PRS e dados relacionados; não é o módulo principal de fonia.
+- Módulo C: fonia DMR e C4FM/YSF.
+- Módulo D: fonia D-STAR.
+- Módulo E: eco e testes de áudio.
 
-## Observação sobre o ranking
-Os rankings são calculados com o histórico disponível nos logs e com as conexões ativas; não representam necessariamente todo o histórico do servidor.
+## Referência de fonia
+
+- D-STAR: {{REFLECTOR_NAME}}-D.
+- DMR: módulo C; TG 6 no rádio/hotspot conforme a arquitetura do {{REFLECTOR_NAME}} e TG {{DMR_TG}} nos aplicativos suportados.
+- C4FM/YSF: módulo C; BR-{{REFLECTOR_NAME}} / YSF{{YSF_ID}}.
+
+## Como interpretar os dados
+
+- Indicativo do operador não é o mesmo campo que Hotspot/Repetidora.
+- O sufixo de gateway/repetidora não define sozinho o módulo do refletor.
+- Estar conectado não significa estar transmitindo.
+- Tempo conectado não é tempo de TX.
+- Refletores listados no diretório global não são necessariamente administrados pelo {{REFLECTOR_TITLE}}.
+
+## Páginas canônicas
+
+- [Ao Vivo](https://{{DOMAIN}}/ao-vivo): monitor de transmissões e atividade em tempo real.
+- [Conectados](https://{{DOMAIN}}/conectados): módulos A-E, acessos e estações conectadas.
+- [APRS / D-PRS](https://{{DOMAIN}}/aprs-dprs): laboratório APRS/D-PRS e módulo B.
+- [Ranking](https://{{DOMAIN}}/ranking): estatísticas de atividade.
+- [Certificado](https://{{DOMAIN}}/certificado): certificados de participação registrada; não substituem documentos da ANATEL.
+- [Simulado ANATEL](https://{{DOMAIN}}/simulado-anatel/): simulador educacional independente e não oficial.
+- [Lista de Refletores XLX](https://{{DOMAIN}}/refletores): diretório da rede XLX.
+- [Suporte](https://{{DOMAIN}}/suporte): tutoriais e referências técnicas; software de terceiros permanece atribuído ao projeto original.
+
+## Dados estruturados
+
+- Contexto completo em JSON: https://{{DOMAIN}}/ai-context.json
+- Sitemap: https://{{DOMAIN}}/sitemap.xml

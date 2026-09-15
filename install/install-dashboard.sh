@@ -209,6 +209,8 @@ while :; do
     echo "Invalid YSF ID / ID YSF inválido."
 done
 
+YSF_ROOM="${XLX_YSF_ROOM:-$REFLECTOR_NAME}"
+
 while :; do
     read -r -p "DMR TalkGroup / TG DMR: " DMR_TG
 
@@ -235,6 +237,15 @@ mkdir -p "$DEST/config"
 install -d -m 0750 -o www-data -g www-data /var/cache/xlx-dashboard
 install -d -m 0750 -o www-data -g www-data /var/cache/xlx-ham-weather
 
+# Dashboard-owned long-history storage used by the 7/30 day Ao Vivo views.
+install -d -m 0750 -o www-data -g www-data /var/lib/xlx-dashboard-history
+install -m 0644 "$ROOT/install/history-collector.php" /usr/local/lib/xlx-dashboard-history-collector.php
+sed "s#/var/www/html/xlxd#$DEST#g" "$ROOT/install/systemd/xlx-dashboard-history-collector.service" > /etc/systemd/system/xlx-dashboard-history-collector.service
+install -m 0644 "$ROOT/install/systemd/xlx-dashboard-history-collector.timer"     /etc/systemd/system/xlx-dashboard-history-collector.timer
+systemctl daemon-reload
+systemctl enable --now xlx-dashboard-history-collector.timer >/dev/null
+systemctl start xlx-dashboard-history-collector.service || true
+
 cat > "$DEST/config/site.php" <<PHP
 <?php
 declare(strict_types=1);
@@ -249,6 +260,7 @@ return [
  'branding'=>[
   'header_title'=>'$(escape "$REFLECTOR_TITLE")',
   'header_subtitle'=>'$(escape "$REFLECTOR_DESCRIPTION")','footer_text'=>'',
+  'logo_path'=>'assets/logo-reflector.svg',
  ],
  'features'=>[
   'show_contact_email'=>true,
@@ -258,6 +270,7 @@ return [
   'reflector_number'=>'$(escape "$REFLECTOR_NUMBER")',
   'reflector_short_number'=>'$(escape "$REFLECTOR_SHORT_NUMBER")',
   'ysf_id'=>'$(escape "$YSF_ID")',
+  'ysf_room'=>'$(escape "$YSF_ROOM")',
   'dmr_tg'=>'$(escape "$DMR_TG")',
  ],
  'locale'=>[

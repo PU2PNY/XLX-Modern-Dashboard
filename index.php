@@ -1,6 +1,6 @@
 <?php
 $page = $_GET['page'] ?? 'ao-vivo';
-$allowed = ['ao-vivo','modulos','conectados','ranking','refletores','noticias','suporte','certificado','digital-lab','simulado-anatel'];
+$allowed = ['ao-vivo','modulos','conectados','ranking','refletores','suporte','certificado','digital-lab','simulado-anatel'];
 if (!in_array($page, $allowed, true)) $page = 'ao-vivo';
 function nav_class(string $p, string $current): string { return $p === $current ? ' class="active"' : ''; }
 function page_url(string $p): string {
@@ -8,18 +8,24 @@ function page_url(string $p): string {
   if ($p === 'simulado-anatel') return '/simulado-anatel/';
   return '/' . rawurlencode($p);
 }
+function asset_version(string $relative): string {
+  $path = __DIR__ . '/' . ltrim($relative, '/');
+  if (!is_file($path)) return '0';
+  $mtime = (int)@filemtime($path);
+  $size = (int)@filesize($path);
+  return dechex($mtime) . '-' . dechex($size);
+}
 function render_nav(string $page): string {
   $items = [
     'ao-vivo' => 'Ao vivo',
+    'modulos' => 'Módulos',
     'conectados' => 'Conectados',
     'suporte' => 'Suporte',
-    'modulos' => 'Módulos A–E',
     'digital-lab' => 'APRS / D-PRS',
     'ranking' => 'Ranking',
     'certificado' => 'Certificado',
     'simulado-anatel' => 'Simulado ANATEL',
     'refletores' => 'Lista de refletores XLX',
-    'noticias' => 'Notícias',
   ];
   $html = '';
   foreach ($items as $slug => $label) {
@@ -124,107 +130,85 @@ $canonical = $page === 'digital-lab'
 <link rel="canonical" href="<?=htmlspecialchars($canonical, ENT_QUOTES, 'UTF-8')?>">
 <meta property="og:type" content="website"><meta property="og:locale" content="pt_BR"><meta property="og:site_name" content="{{REFLECTOR_TITLE}}">
 <meta property="og:title" content="<?=htmlspecialchars($meta['title'], ENT_QUOTES, 'UTF-8')?>"><meta property="og:description" content="<?=htmlspecialchars($meta['description'], ENT_QUOTES, 'UTF-8')?>">
-<meta property="og:url" content="<?=htmlspecialchars($canonical, ENT_QUOTES, 'UTF-8')?>"><meta property="og:image" content="https://{{DOMAIN}}/assets/logo-reflector.svg">
-<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="<?=htmlspecialchars($meta['title'], ENT_QUOTES, 'UTF-8')?>"><meta name="twitter:description" content="<?=htmlspecialchars($meta['description'], ENT_QUOTES, 'UTF-8')?>"><meta name="twitter:image" content="https://{{DOMAIN}}/assets/logo-reflector.svg">
+<meta property="og:url" content="<?=htmlspecialchars($canonical, ENT_QUOTES, 'UTF-8')?>"><meta property="og:image" content="https://{{DOMAIN}}/{{LOGO_PATH}}">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="<?=htmlspecialchars($meta['title'], ENT_QUOTES, 'UTF-8')?>"><meta name="twitter:description" content="<?=htmlspecialchars($meta['description'], ENT_QUOTES, 'UTF-8')?>"><meta name="twitter:image" content="https://{{DOMAIN}}/{{LOGO_PATH}}">
 <link rel="icon" href="favicon.ico" sizes="any"><link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png"><link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png"><link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png"><link rel="manifest" href="site.webmanifest">
-<title><?=htmlspecialchars($meta['title'], ENT_QUOTES, 'UTF-8')?></title><link rel="stylesheet" href="assets/app.css?v=modulosresponsive_20260809_003204"><link rel="stylesheet" href="assets/header-hotfix.css?v=1"><link rel="stylesheet" href="assets/mtr.css?v=4">
-
-<!-- XLX026_HAM_NEWS_V1 CSS -->
-<link rel="stylesheet" href="/assets/ham-news-widget.css?v=1">
-
-
-<!-- XLX026_MOBILE_MENU_V4_CSS -->
+<title><?=htmlspecialchars($meta['title'], ENT_QUOTES, 'UTF-8')?></title>
+<link rel="stylesheet" href="assets/app.css?v=<?=asset_version('assets/app.css')?>">
+<link rel="stylesheet" href="assets/header-hotfix.css?v=1">
+<link rel="stylesheet" href="assets/mtr.css?v=<?=asset_version('assets/mtr.css')?>">
+<link rel="stylesheet" href="assets/install-app.css?v=33">
+<link rel="stylesheet" href="assets/offline-neon.css?v=20260806_103404">
+<link rel="stylesheet" href="assets/ham-weather-widget.css?v=3">
 <link rel="stylesheet" href="assets/mobile-menu-v4.css?v=20260807_023247">
-<!-- XLX026_AO_VIVO_CLEAN_V1_CSS -->
-<link rel="stylesheet" href="assets/ao-vivo-clean-v1.css?v=20260807_024051">
-
-<!-- XLX026_HISTORY_SOUND_MENU_V1 CSS -->
+<?php if ($page === 'ao-vivo'): ?><link rel="stylesheet" href="assets/ao-vivo-clean-v1.css?v=20260807_024051"><?php endif; ?>
 <link rel="stylesheet" href="assets/history-sound-menu-v1.css?v=20260807_025428">
-
-<!-- XLX026_HISTORY_MOBILE_FIT_V2 -->
 <link rel="stylesheet" href="assets/history-mobile-fit-v2.css?v=20260807_031008">
-
-<!-- XLX026_TABLE_ROW_HOVER_V1 -->
 <link rel="stylesheet" href="assets/table-row-hover-v1.css?v=20260807_031841">
-
-<!-- XLX026_HEADER_UNIFICADO_V1 CSS -->
 <link rel="stylesheet" href="assets/header-unificado-v1.css?v=20260807_032449">
-<link rel="stylesheet" href="assets/ao-vivo-top-layout-v2.css?v=20260809_004523">
-<link rel="stylesheet" href="assets/ao-vivo-compact-v3.css?v=20260809_005445">
-
-<link rel="stylesheet" href="assets/ao-vivo-tx-embed-v5.css?v=20260809_011147">
-<link rel="stylesheet" href="assets/ao-vivo-tx-finetune-v6.css?v=20260809_012217">
-<link rel="stylesheet" href="assets/ao-vivo-visual-fix-v7.css?v=20260809_012436">
-<link rel="stylesheet" href="assets/ao-vivo-gif-scale-v8.css?v=20260809_012804">
-<link rel="stylesheet" href="assets/ao-vivo-gif-position-v9.css?v=20260809_013030">
-<link rel="stylesheet" href="assets/ao-vivo-gif-anchor-v12.css?v=20260809_014742">
-<!-- XLX026_HEADER_NEON_FINETUNE_V1 -->
+<?php if ($page === 'ao-vivo'): ?><link rel="stylesheet" href="assets/ao-vivo-core-bundle-v1.css?v=<?=asset_version('assets/ao-vivo-core-bundle-v1.css')?>"><?php endif; ?>
 <link rel="stylesheet" href="assets/header-neon-finetune-v1.css?v=20260809_020223">
-<?php if ($page === 'certificado'): ?>
-<link rel="stylesheet" href="assets/certificado.css?v=20260809_01">
-<?php endif; ?>
-<link rel="stylesheet" href="assets/ao-vivo-cirurgico-v1.css?v=20260810_CIRURGICO_V1">
-<link rel="stylesheet" href="assets/ao-vivo-boxes-v2.css?v=20260810_BOXES_V2">
-<link rel="stylesheet" href="assets/ao-vivo-boxes-v31-radar.css?v=RADAR_V31_20260810_011540">
-<link rel="stylesheet" href="assets/atividade-24h-conectados-v1.css?v=ATIVIDADE24H_V1_20260810_012549">
-<?php if ($page === 'digital-lab'): ?><link rel="stylesheet" href="assets/digital-lab.css?v=20260810_DLAB_V1"><?php endif; ?>
-<!-- XLX026_CERT_EVENT_ALERT_V1_CSS -->
-<link rel="stylesheet" href="assets/cert-event-alert-v1.css?v=20260811_02">
-<!-- {{REFLECTOR_NAME}}-A11Y-CSS -->
-<link rel="stylesheet" href="assets/xlx-accessibility.css?v=a11y3">
-<!-- /{{REFLECTOR_NAME}}-A11Y-CSS -->
-<!-- XLX026_STANDBY_DENTRO_BOX_V3 -->
+<?php if ($page === 'certificado'): ?><link rel="stylesheet" href="assets/certificado.css?v=20260809_01"><?php endif; ?>
+<?php if ($page === 'ao-vivo'): ?><link rel="stylesheet" href="assets/ao-vivo-final-bundle-v1.css?v=<?=asset_version('assets/ao-vivo-final-bundle-v1.css')?>"><?php endif; ?>
+<?php if ($page === 'ao-vivo'): ?><link rel="stylesheet" href="assets/qrz-tx-photo-v1.css?v=<?=asset_version('assets/qrz-tx-photo-v1.css')?>"><?php endif; ?>
+<link rel="stylesheet" href="assets/atividade-24h-conectados-v1.css?v=STATUS_LINK_V15B_20260906_220135">
+<link rel="stylesheet" href="assets/cert-event-alert-v1.css?v=CERT_ALERT_FIX_ISCERT_20260907">
+<link rel="stylesheet" href="assets/xlx-accessibility.css?v=A11Y_AUDIO_V5E_20260823_143453">
 <link rel="stylesheet" href="assets/standby-mensagens-v3.css?v=20260814_091215">
-
-<?php if ($page === 'simulado-anatel'): ?>
-<!-- XLX026_SIMULADO_V4_CSS -->
-<link rel="stylesheet" href="/assets/simulado-anatel.css?v=20260815_062228">
-<!-- /XLX026_SIMULADO_V4_CSS -->
-<?php endif; ?>
+<link rel="stylesheet" href="/assets/header-brasil-neon-fixed-v2.css?v=20260822_033902">
+<link rel="stylesheet" href="/assets/header-brasil-refino-v3.css?v=20260822_034550">
+<link rel="stylesheet" href="/assets/header-horizontal-responsivo-v4.css?v=20260822_035650">
+<link rel="stylesheet" href="/assets/header-menu-breakpoint-fix-v1.css?v=20260908_1401">
+<link rel="stylesheet" href="/assets/xlx-accessibility-compact-v1.css?v=20260823_144035">
+<link rel="stylesheet" href="/assets/grid-text-wrap-v1.css?v=LAYOUT_WIDTH_1240_V1_20260907">
+<link rel="stylesheet" href="/assets/mobile-visual-v1.css?v=MOBILE_VISUAL_V3_A11Y_20260908_1605">
+<meta name="application-name" content="{{REFLECTOR_TITLE}}">
+<link rel="alternate" type="application/json" href="/ai-context.json" title="{{REFLECTOR_NAME}} AI context">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="{{REFLECTOR_NAME}} LLM context">
+<link rel="stylesheet" href="/assets/seo-ai-context.css?v=SEO_AI_BUSCADORES_V2R_20260822_043348">
+<?php require __DIR__ . '/seo-ai-structured.php'; ?>
+<?php if ($page === 'digital-lab'): ?><link rel="stylesheet" href="assets/digital-lab.css?v=20260810_DLAB_V1"><?php endif; ?>
+<?php if ($page === 'simulado-anatel'): ?><link rel="stylesheet" href="/assets/simulado-anatel.css?v=20260815_062228"><?php endif; ?>
 </head>
 <body data-page="<?=htmlspecialchars($page, ENT_QUOTES, 'UTF-8')?>">
 <main>
 <section class="hero hero-compact universal-header" aria-label="{{REFLECTOR_TITLE}}">
  <div class="universal-header-row">
   <a class="universal-brand" href="<?=page_url('ao-vivo')?>" aria-label="{{REFLECTOR_TITLE}}">
-   <img class="hero-logo" src="assets/logo-reflector.svg" alt="{{REFLECTOR_TITLE}} — D-STAR, DMR e C4FM" width="112" height="112">
+   <img class="hero-logo" src="{{LOGO_PATH}}" alt="{{REFLECTOR_TITLE}} — D-STAR, DMR e C4FM" width="112" height="112">
   </a>
-
   <div class="universal-copy">
-   <h1><span>{{REFLECTOR_TITLE}}</span></h1>
-
+   <h1><span class="xlx026-brasil-title" data-title="{{REFLECTOR_TITLE}}"><span class="xlx026-title-code">{{REFLECTOR_NAME}}</span> <span class="xlx026-title-country">{{COUNTRY}}</span></span></h1>
    <div class="access-strip access-strip-compact" aria-label="Acessos do servidor">
     <span><b>D-STAR</b> {{REFLECTOR_NAME}}-D</span>
-    <span><b>DMR</b> {{REFLECTOR_NAME}}-C • TG 6 no rádio • TG 4003 nos apps</span>
-    <span><b>C4FM/YSF</b> {{REFLECTOR_NAME}} • YSF{{YSF_ID}}</span>
+    <span><b>DMR</b> {{REFLECTOR_NAME}}-C • TG 6 no rádio • TG {{DMR_TG}} nos apps</span>
+    <span><b>C4FM/YSF</b> {{YSF_ROOM}} • YSF{{YSF_ID}}</span>
    </div>
   </div>
-
-  <div class="live-pill universal-live-pill" aria-live="polite">
-   <i></i>
-   <span id="syncState">Conectando</span>
-  </div>
+  <div class="live-pill universal-live-pill" aria-live="polite"><i></i><span id="syncState">Conectando</span></div>
  </div>
-
+ <!-- XLX026_A11Y_HEADER_V5E -->
  <nav class="universal-nav" aria-label="Menu principal">
   <?=render_nav($page)?>
+  <a href="#acessibilidade" class="xlx-a11y-menu-icon" aria-label="Abrir acessibilidade" title="Acessibilidade">♿</a>
  </nav>
-
+ <button class="xlx-a11y-mobile-icon" type="button" aria-label="Abrir acessibilidade" title="Acessibilidade">♿</button>
  <button class="menu-toggle" type="button" aria-label="Abrir menu" aria-expanded="false">☰</button>
+ <!-- /XLX026_A11Y_HEADER_V5E -->
 </section>
 <?php if ($page === 'ao-vivo'): ?>
  <section class="dashboard-layout">
-   <aside class="live-widget"><div class="widget-heading"><div><p class="eyebrow">MONITOR AO VIVO</p><h2>Transmissões</h2></div><span id="widgetCount">Standby</span></div><div class="live-summary-bar" aria-label="Resumo do monitor ao vivo"><span class="live-summary-item live-summary-connected"><b id="headerConnected">0</b><small>conectados</small></span><span class="live-summary-item live-summary-active"><b id="headerActive">0</b><small>TX ativa</small></span></div><div id="moduleGrid" class="module-grid widget-grid"></div></aside>
- <div class="dashboard-main panel compact-panel">
-   <div class="section-title panel-title"><div><p class="eyebrow">ÚLTIMAS ATIVIDADES</p><h2 class="history-title-connected-size">Atividade das últimas 24 horas</h2></div><span class="table-note">Até 40 indicativos</span></div>
-   <div class="table-wrap"><table class="home-history"><thead><tr><th>País</th><th>Horário</th><th>Indicativo</th><th>Operador</th><th>Protocolo</th><th>Módulo</th><th>Duração</th><th>Status</th></tr></thead><tbody id="historyRows"></tbody></table></div>
+  <aside class="live-widget"><div class="widget-heading"><div><p class="eyebrow">MONITOR AO VIVO</p><h2>Transmissões</h2></div><span id="widgetCount">Standby</span></div><div class="live-summary-bar" aria-label="Resumo do monitor ao vivo"><span class="live-summary-item live-summary-connected"><b id="headerConnected">0</b><small>conectados</small></span><span class="live-summary-item live-summary-active"><b id="headerActive">0</b><small>TX ativa</small></span></div><div id="moduleGrid" class="module-grid widget-grid"></div></aside>
+  <div class="dashboard-main panel compact-panel">
+   <div class="section-title panel-title"><div><p class="eyebrow">ÚLTIMAS ATIVIDADES</p><h2 id="historyPeriodTitle" class="history-title-connected-size">Atividade das últimas 24 horas</h2></div><span id="historyCoverageNote" class="table-note">Todos os indicativos</span></div>
+   <div class="table-wrap"><table class="home-history"><thead><tr><th>Nº</th><th>País</th><th>Status</th><th>Indicativo</th><th>Nome</th><th>Gateway / Repetidora</th><th>Cidade</th><th>Protocolo</th><th>Módulo</th><th>Horário TX</th><th>Tempo de TX</th></tr></thead><tbody id="historyRows"></tbody></table></div>
   </div>
  </section>
-<!-- {{REFLECTOR_NAME}} HAM WEATHER WIDGET V1 -->
+ <!-- XLX026 HAM WEATHER WIDGET V1 -->
  <section class="hamwx-panel panel" id="hamWeatherWidget" aria-label="Clima e condições de propagação para radioamadores">
   <div class="hamwx-skeleton">Carregando clima e propagação...</div>
  </section>
-<!-- /{{REFLECTOR_NAME}} HAM WEATHER WIDGET V1 -->
+<!-- /XLX026 HAM WEATHER WIDGET V1 -->
 <?php elseif ($page === 'simulado-anatel'): ?>
 <!-- XLX026_SIMULADO_V4_VIEW -->
 <?php require __DIR__.'/simulado-anatel-view.php'; ?>
@@ -356,8 +340,12 @@ $canonical = $page === 'digital-lab'
 
 
 
+<!-- XLX026_SEO_AI_BUSCADORES_V2_INCLUDE -->
+<?php require __DIR__ . '/seo-ai-context.php'; ?>
+<!-- /XLX026_SEO_AI_BUSCADORES_V2_INCLUDE -->
 </main>
-<div id="toastStack" class="toast-stack"></div><?php if ($page === 'suporte'): ?><script src="assets/support-native.js?v=22"></script><?php endif; ?><script src="assets/mtr.js?v=20260810_CIRURGICO_V1"></script><script src="assets/app.js?v=CONNECTED_VOICE_NO_TX_V103_20260813_005148"></script>
+<footer><div><a class="brand footer-brand" href="<?=page_url('ao-vivo')?>"><img class="brand-logo" src="{{LOGO_PATH}}" alt="Logotipo {{REFLECTOR_TITLE}}"><span><b>{{REFLECTOR_NAME}}</b><small>{{COUNTRY_UPPER}}</small></span></a></div><div class="footer-links"><a href="<?=page_url('ao-vivo')?>">Ao vivo</a><a href="<?=page_url('digital-lab')?>">APRS / D-PRS</a><a href="<?=page_url('conectados')?>">Conectados</a><a href="<?=page_url('ranking')?>">Ranking</a><a href="<?=page_url('suporte')?>">Suporte</a></div><small class="footer-final-line"><a href="https://github.com/PU2PNY/XLX-Modern-Dashboard" target="_blank" rel="noopener noreferrer"><strong>Painel XLX Modern v1.1.0</strong></a><span class="footer-separator"> · </span><a href="https://github.com/PU2PNY/XLX-Modern-Installer" target="_blank" rel="noopener noreferrer"><strong>Instalador v2.6.0</strong></a><span class="footer-separator"> · </span><span>Desenvolvido por <a href="https://paginacertadigital.com.br/" target="_blank" rel="noopener noreferrer">paginacertadigital.com.br</a></span></small></footer>
+<div id="toastStack" class="toast-stack"></div><?php if ($page === 'suporte'): ?><script src="assets/support-native.js?v=22"></script><?php endif; ?><script src="assets/mtr.js?v=<?=asset_version('assets/mtr.js')?>"></script><script src="assets/app.js?v=<?=asset_version('assets/app.js')?>"></script>
 
 
 <!-- {{REFLECTOR_NAME}} INSTALL APP V33 -->
@@ -427,7 +415,7 @@ $canonical = $page === 'digital-lab'
 <!-- /{{REFLECTOR_NAME}} INSTALL APP V33 -->
 <script src="assets/install-app.js?v=33"></script><script src="assets/ham-weather-widget.js?v=perf11_20260809_001410" defer></script>
 <!-- XLX026_HAM_NEWS_V1 JS -->
-<script src="/assets/ham-news-widget.js?v=1" defer></script>
+
 
 
 <!-- XLX026_MOBILE_MENU_V4_JS -->
@@ -448,7 +436,7 @@ $canonical = $page === 'digital-lab'
 <!-- XLX026_CERT_EVENT_ALERT_V1_JS -->
 <script src="assets/cert-event-alert-v1.js?v=20260811_04" defer></script>
 <!-- {{REFLECTOR_NAME}}-A11Y-JS -->
-<script src="assets/xlx-accessibility.js?v=a11y3" defer></script>
+<script src="assets/xlx-accessibility.js?v=A11Y_CLICK_V6_20260908_1605" defer></script>
 <!-- /{{REFLECTOR_NAME}}-A11Y-JS -->
 
 <!-- XLX026_REMOVER_SOMENTE_BIP_MENU_START -->
@@ -468,4 +456,5 @@ html body[data-page] .universal-nav .xlx026-menu-sound-control {
 <script src="/assets/simulado-anatel.js?v=20260815_062228"></script>
 <!-- /XLX026_SIMULADO_V4_JS -->
 <?php endif; ?>
+<script src="/assets/header-brasil-neon-fixed-v2.js?v=20260822_033902"></script>
 </body></html>

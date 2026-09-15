@@ -7,7 +7,50 @@ header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
 
 $logFile = '/var/log/xlx.log';
-$statusCache = '/var/cache/xlx026-dashboard/status.json';
+$statusCache = '/var/cache/xlx-dashboard/status.json';
+
+
+/* XLXMODERN_LIVE_MICROCACHE_V1
+ * Evita que vários navegadores reconstruam o mesmo estado simultaneamente.
+ * Janela curta: 300 ms. Formato externo da API permanece idêntico.
+ */
+$microCacheFile = '/var/cache/xlx-dashboard/live-fast.cache';
+$microLockFile = '/var/cache/xlx-dashboard/live-fast.lock';
+$microCacheTtl = 0.300;
+$microNow = microtime(true);
+
+$microReadFresh = static function(string $file, float $now, float $ttl): ?string {
+    if (!is_readable($file)) return null;
+    $raw = @file_get_contents($file);
+    if (!is_string($raw) || $raw === '') return null;
+    $nl = strpos($raw, "\n");
+    if ($nl === false) return null;
+    $stamp = (float)substr($raw, 0, $nl);
+    if ($stamp <= 0 || ($now - $stamp) < 0 || ($now - $stamp) >= $ttl) return null;
+    $body = substr($raw, $nl + 1);
+    return $body !== '' ? $body : null;
+};
+
+$microCached = $microReadFresh($microCacheFile, $microNow, $microCacheTtl);
+if ($microCached !== null) {
+    header('X-XLXMODERN-Live-Cache: HIT');
+    echo $microCached;
+    exit;
+}
+
+$microLock = @fopen($microLockFile, 'c');
+if (is_resource($microLock)) {
+    @flock($microLock, LOCK_EX);
+    $microNow = microtime(true);
+    $microCached = $microReadFresh($microCacheFile, $microNow, $microCacheTtl);
+    if ($microCached !== null) {
+        header('X-XLXMODERN-Live-Cache: HIT-LOCK');
+        @flock($microLock, LOCK_UN);
+        @fclose($microLock);
+        echo $microCached;
+        exit;
+    }
+}
 
 if (!is_readable($logFile)) {
     http_response_code(503);
@@ -27,6 +70,7 @@ if (!is_readable($logFile)) {
  * Não consulta o banco de 20 MB nesta rota rápida.
  */
 $connections = [];
+$statusSnapshot = [];
 
 if (is_readable($statusCache)) {
     $cached = json_decode(
@@ -34,12 +78,15 @@ if (is_readable($statusCache)) {
         true
     );
 
-    if (
-        is_array($cached)
-        && isset($cached['connections'])
-        && is_array($cached['connections'])
-    ) {
-        $connections = $cached['connections'];
+    if (is_array($cached)) {
+        $statusSnapshot = $cached;
+
+        if (
+            isset($cached['connections'])
+            && is_array($cached['connections'])
+        ) {
+            $connections = $cached['connections'];
+        }
     }
 }
 
@@ -85,6 +132,7 @@ $active = [];
 $recentProtocols = [];
 $lines = preg_split('/\R/', $raw) ?: [];
 
+/* XLXMODERN_LOG260_COMPAT_V2: parser compatível XLXD 2.5/2.6 */
 foreach ($lines as $line) {
     if (
         preg_match(
@@ -111,7 +159,10 @@ foreach ($lines as $line) {
     if (
         preg_match(
             '/Opening stream on module\s+([A-Z])\s+' .
-            'for client\s+([A-Z0-9]+)\s*([A-Z0-9]+)?\s+' .
+            'for\s+(?:client\s+)?([A-Z0-9\/\-]+)' .
+            '(?:\s+((?!(?:on|via)\b)[A-Z0-9]+))?' .
+            '(?:\s*\/\s*[A-Z0-9+_-]+)?' .
+            '(?:\s+(?:on|via)\s+[A-Z0-9\/\-]+(?:\s+[A-Z0-9]+)?)?\s+' .
             'with sid\s+(\d+)/i',
             $line,
             $match
@@ -260,7 +311,7 @@ foreach ($lines as $line) {
         }
 
         $active[$module] = [
-            'key' => $module . ':' . $streamId,
+            'key' => $module . ':' . $streamId . ':' . ($timestamp ?: time()),
             'module' => $module,
             'stream_id' => $streamId,
             'callsign' => $call,
@@ -307,7 +358,561 @@ foreach ($active as $module => $transmission) {
     }
 }
 
-echo json_encode(
+
+/* XLXMODERN_LIVE_OPERATOR_BRIDGE_V12 START */
+
+/*
+ * O stream_id é usado quando existe nos dois lados.
+ *
+ * Se o status.json não possuir stream_id, o match
+ * seguro passa a ser:
+ *
+ *   módulo
+ * + gateway/network_callsign
+ * + started_at ±3 segundos
+ * + identity_source xlxd-station-*
+ *
+ * Se os DOIS lados possuírem stream_id e eles forem
+ * diferentes, a identidade é rejeitada.
+ */
+
+$xlxmodernBaseCallV12 = static function (
+    $value
+): string {
+    $value = strtoupper(
+        trim((string)$value)
+    );
+
+    if ($value === '') {
+        return '';
+    }
+
+    $parts = preg_split(
+        '/\s+/',
+        $value
+    ) ?: [];
+
+    return trim(
+        (string)(
+            $parts[0]
+            ?? ''
+        )
+    );
+};
+
+$xlxmodernGatewayPartsV12 = static function (
+    $value
+) use (
+    $xlxmodernBaseCallV12
+): array {
+    $raw = strtoupper(
+        trim((string)$value)
+    );
+
+    if (
+        $raw === ''
+        || $raw === 'NÃO IDENTIFICADO'
+        || $raw === 'GATEWAY NÃO IDENTIFICADO'
+    ) {
+        return ['', ''];
+    }
+
+    $parts = preg_split(
+        '/\s+/',
+        $raw
+    ) ?: [];
+
+    $call = $xlxmodernBaseCallV12(
+        $raw
+    );
+
+    $suffix = '';
+
+    if (count($parts) >= 2) {
+        $candidate = strtoupper(
+            trim(
+                (string)$parts[1]
+            )
+        );
+
+        if (
+            preg_match(
+                '/^[A-Z0-9]$/',
+                $candidate
+            )
+        ) {
+            $suffix = $candidate;
+        }
+    }
+
+    return [
+        $call,
+        $suffix
+    ];
+};
+
+foreach (
+    $active as $module => $transmission
+) {
+    /*
+     * Primeiro normaliza o gateway bruto:
+     *
+     * PY4RWC B -> PY4RWC + suffix B
+     * N0CALL B -> N0CALL + suffix B
+     */
+
+    [
+        $liveGatewayBase,
+        $liveGatewaySuffix
+    ] = $xlxmodernGatewayPartsV12(
+        $transmission['gateway']
+        ?? ''
+    );
+
+    $liveClientBase =
+        $xlxmodernBaseCallV12(
+            $transmission['callsign']
+            ?? ''
+        );
+
+    if ($liveGatewayBase !== '') {
+        $active[$module]['gateway'] =
+            $liveGatewayBase;
+
+        if (
+            trim(
+                (string)(
+                    $active[$module][
+                        'gateway_suffix'
+                    ]
+                    ?? ''
+                )
+            ) === ''
+            && $liveGatewaySuffix !== ''
+        ) {
+            $active[$module][
+                'gateway_suffix'
+            ] = $liveGatewaySuffix;
+        }
+    }
+
+    if (
+        $liveClientBase !== ''
+        && trim(
+            (string)(
+                $active[$module][
+                    'network_callsign'
+                ]
+                ?? ''
+            )
+        ) === ''
+    ) {
+        $active[$module][
+            'network_callsign'
+        ] = $liveClientBase;
+    }
+
+    /*
+     * Identidade STATION disponível no cache?
+     */
+
+    $cachedTransmission =
+        $statusSnapshot['modules']
+            [$module]['transmission']
+        ?? null;
+
+    if (!is_array($cachedTransmission)) {
+        continue;
+    }
+
+    $source = trim(
+        (string)(
+            $cachedTransmission[
+                'identity_source'
+            ]
+            ?? ''
+        )
+    );
+
+    if (
+        $source === ''
+        || strpos(
+            $source,
+            'xlxd-station'
+        ) !== 0
+    ) {
+        continue;
+    }
+
+    /*
+     * Mesmo módulo.
+     */
+
+    $liveModule = strtoupper(
+        trim(
+            (string)(
+                $transmission['module']
+                ?? $module
+            )
+        )
+    );
+
+    $cacheModule = strtoupper(
+        trim(
+            (string)(
+                $cachedTransmission['module']
+                ?? $module
+            )
+        )
+    );
+
+    if (
+        $liveModule === ''
+        || $liveModule !== $cacheModule
+    ) {
+        continue;
+    }
+
+    /*
+     * Gateway/repetidora precisa bater.
+     *
+     * O client cru do live normalmente é:
+     *   PY4RWC
+     *
+     * E no STATION:
+     *   gateway/network_callsign = PY4RWC
+     */
+
+    $cacheGateway =
+        $xlxmodernBaseCallV12(
+            $cachedTransmission[
+                'gateway'
+            ]
+            ?? ''
+        );
+
+    $cacheNetwork =
+        $xlxmodernBaseCallV12(
+            $cachedTransmission[
+                'network_callsign'
+            ]
+            ?? ''
+        );
+
+    $gatewayMatch =
+        $liveClientBase !== ''
+        && (
+            (
+                $cacheGateway !== ''
+                && $liveClientBase ===
+                   $cacheGateway
+            )
+            ||
+            (
+                $cacheNetwork !== ''
+                && $liveClientBase ===
+                   $cacheNetwork
+            )
+            ||
+            (
+                $liveGatewayBase !== ''
+                && $cacheGateway !== ''
+                && $liveGatewayBase ===
+                   $cacheGateway
+            )
+        );
+
+    if (!$gatewayMatch) {
+        continue;
+    }
+
+    /*
+     * Horário é obrigatório.
+     */
+
+    $liveStart = (int)(
+        $transmission['started_at']
+        ?? 0
+    );
+
+    $cacheStart = (int)(
+        $cachedTransmission['started_at']
+        ?? 0
+    );
+
+    if (
+        $liveStart <= 0
+        || $cacheStart <= 0
+        || abs(
+            $liveStart
+            - $cacheStart
+        ) > 3
+    ) {
+        continue;
+    }
+
+    /*
+     * Stream ID:
+     *
+     * - se existe nos dois lados: TEM que ser igual;
+     * - se está ausente em um lado: gateway+hora
+     *   continua sendo suficiente.
+     */
+
+    $liveStream = (int)(
+        $transmission['stream_id']
+        ?? 0
+    );
+
+    $cacheStream = (int)(
+        $cachedTransmission['stream_id']
+        ?? 0
+    );
+
+    if (
+        $liveStream > 0
+        && $cacheStream > 0
+        && $liveStream !== $cacheStream
+    ) {
+        continue;
+    }
+
+    /*
+     * Mesma transmissão comprovada.
+     */
+
+    foreach ([
+        'callsign',
+        'suffix',
+        'name',
+        'location',
+        'country',
+        'protocol',
+        'qrz',
+        'gateway',
+        'gateway_suffix',
+        'network_callsign',
+        'identity_source',
+        'origin_match',
+    ] as $field) {
+        if (
+            array_key_exists(
+                $field,
+                $cachedTransmission
+            )
+        ) {
+            $active[$module][$field] =
+                $cachedTransmission[$field];
+        }
+    }
+
+    /*
+     * Normaliza novamente após copiar.
+     */
+
+    [
+        $finalGateway,
+        $finalSuffix
+    ] = $xlxmodernGatewayPartsV12(
+        $active[$module]['gateway']
+        ?? ''
+    );
+
+    if ($finalGateway !== '') {
+        $active[$module]['gateway'] =
+            $finalGateway;
+    }
+
+    if (
+        trim(
+            (string)(
+                $active[$module][
+                    'gateway_suffix'
+                ]
+                ?? ''
+            )
+        ) === ''
+        && $finalSuffix !== ''
+    ) {
+        $active[$module][
+            'gateway_suffix'
+        ] = $finalSuffix;
+    }
+
+    /*
+     * Campo diagnóstico.
+     * O frontend pode ignorar.
+     */
+
+    $active[$module][
+        'identity_match'
+    ] = (
+        $liveStream > 0
+        && $cacheStream > 0
+    )
+        ? 'station-stream-time-gateway'
+        : 'station-time-gateway';
+}
+
+/* XLXMODERN_LIVE_OPERATOR_BRIDGE_V12 END */
+
+/* XLXMODERN_MULTI_AUDIO_VU_V3
+ * DMR/YSF/D-STAR: tap raw-socket passivo; não altera nem reencaminha pacotes.
+ * DMR mantém telemetria antiga apenas como fallback durante a migração.
+ * Quando o protocolo do box é ambíguo, vence a amostra mais recente.
+ */
+$xlxmodernVuNowMs = (int) round(microtime(true) * 1000);
+$xlxmodernVuDmrDir = '/run/xlx-dmr-normalizer';
+$xlxmodernVuTapDir = '/run/xlx-vu-tap';
+
+$xlxmodernReadVuFile = static function (string $vuFile) use ($xlxmodernVuNowMs) {
+    if (!is_readable($vuFile)) {
+        return null;
+    }
+
+    $vuSize = @filesize($vuFile);
+    if ($vuSize === false || $vuSize < 20 || $vuSize > 512) {
+        return null;
+    }
+
+    $vuRaw = @file_get_contents($vuFile);
+    $vuData = is_string($vuRaw)
+        ? json_decode($vuRaw, true)
+        : null;
+
+    if (!is_array($vuData)) {
+        return null;
+    }
+
+    $vuTs = (int)($vuData['ts_ms'] ?? 0);
+    $vuAge = $xlxmodernVuNowMs - $vuTs;
+    if ($vuTs <= 0 || $vuAge < -250 || $vuAge > 1800) {
+        return null;
+    }
+
+    if (
+        !is_numeric($vuData['rms_dbfs'] ?? null)
+        || !is_numeric($vuData['peak_dbfs'] ?? null)
+    ) {
+        return null;
+    }
+
+    $vuData['_age_ms'] = $vuAge;
+    return $vuData;
+};
+
+foreach ($active as $vuModule => $vuTx) {
+    $vuIp = trim((string)($vuTx['ip'] ?? ''));
+
+    if (
+        $vuIp === ''
+        || filter_var(
+            $vuIp,
+            FILTER_VALIDATE_IP,
+            FILTER_FLAG_IPV4
+        ) === false
+    ) {
+        continue;
+    }
+
+    $vuSlug = str_replace('.', '_', $vuIp);
+    $vuProtocol = strtoupper(trim((string)($vuTx['protocol'] ?? '')));
+    $vuFiles = [];
+
+    $isDmr = strpos($vuProtocol, 'DMR') !== false;
+    $isYsf = strpos($vuProtocol, 'YSF') !== false
+        || strpos($vuProtocol, 'C4FM') !== false;
+    $isDstar = strpos($vuProtocol, 'DSTAR') !== false
+        || strpos($vuProtocol, 'D-STAR') !== false
+        || strpos($vuProtocol, 'DPLUS') !== false
+        || strpos($vuProtocol, 'DEXTRA') !== false
+        || strpos($vuProtocol, 'DCS') !== false;
+
+    if ($isDmr) {
+        $vuFiles[] = [
+            'family' => 'DMR',
+            'file' => $xlxmodernVuTapDir . '/vu-dmr-' . $vuSlug . '.json',
+        ];
+        $vuFiles[] = [
+            'family' => 'DMR',
+            'file' => $xlxmodernVuDmrDir . '/vu-' . $vuSlug . '.json',
+        ];
+    }
+
+    if ($isYsf) {
+        $vuFiles[] = [
+            'family' => 'YSF',
+            'file' => $xlxmodernVuTapDir . '/vu-ysf-' . $vuSlug . '.json',
+        ];
+    }
+
+    if ($isDstar) {
+        $vuFiles[] = [
+            'family' => 'DSTAR',
+            'file' => $xlxmodernVuTapDir . '/vu-dstar-' . $vuSlug . '.json',
+        ];
+    }
+
+    /* Protocolo ainda não resolvido: tenta os três, sempre escolhendo o mais recente. */
+    if ($vuFiles === []) {
+        $vuFiles = [
+            ['family' => 'DMR', 'file' => $xlxmodernVuTapDir . '/vu-dmr-' . $vuSlug . '.json'],
+            ['family' => 'DMR', 'file' => $xlxmodernVuDmrDir . '/vu-' . $vuSlug . '.json'],
+            ['family' => 'YSF', 'file' => $xlxmodernVuTapDir . '/vu-ysf-' . $vuSlug . '.json'],
+            ['family' => 'DSTAR', 'file' => $xlxmodernVuTapDir . '/vu-dstar-' . $vuSlug . '.json'],
+        ];
+    }
+
+    $bestVu = null;
+    $bestFamily = '';
+
+    foreach ($vuFiles as $candidate) {
+        $candidateData = $xlxmodernReadVuFile($candidate['file']);
+        if (!is_array($candidateData)) {
+            continue;
+        }
+
+        if (
+            $bestVu === null
+            || (int)$candidateData['ts_ms'] > (int)$bestVu['ts_ms']
+        ) {
+            $bestVu = $candidateData;
+            $bestFamily = (string)$candidate['family'];
+        }
+    }
+
+    if (!is_array($bestVu)) {
+        continue;
+    }
+
+    $vuRms = max(-90.0, min(3.0, (float)$bestVu['rms_dbfs']));
+    $vuPeak = max(-90.0, min(3.0, (float)$bestVu['peak_dbfs']));
+
+    /* Silêncio/frames sem fala não devem aparecer como "ganho baixo". */
+    if ($vuRms < -55.0 && $vuPeak < -45.0) {
+        continue;
+    }
+
+    $vuLevel = strtolower(trim((string)($bestVu['level'] ?? '')));
+    if (!in_array($vuLevel, ['low', 'ideal', 'high'], true)) {
+        $vuLowThreshold = $bestFamily === 'DSTAR' ? -35.0 : -33.0;
+        $vuLevel = $vuRms < $vuLowThreshold
+            ? 'low'
+            : ($vuRms > -20.0 ? 'high' : 'ideal');
+    }
+
+    $active[$vuModule]['audio_vu'] = [
+        'rms_dbfs' => round($vuRms, 1),
+        'peak_dbfs' => round($vuPeak, 1),
+        'level' => $vuLevel,
+        'protocol' => $bestFamily,
+        'mode' => (string)($bestVu['mode'] ?? ''),
+        'ts_ms' => (int)$bestVu['ts_ms'],
+    ];
+}
+/* /XLXMODERN_MULTI_AUDIO_VU_V3 */
+
+$liveJson = json_encode(
     [
         'ok' => true,
         'generated_at' => $now,
@@ -322,3 +927,21 @@ echo json_encode(
     | JSON_UNESCAPED_SLASHES
     | JSON_INVALID_UTF8_SUBSTITUTE
 );
+
+if (!is_string($liveJson)) {
+    $liveJson = '{"ok":false,"error":"json_encode_failed"}';
+}
+
+if (is_resource($microLock)) {
+    $tmpMicro = $microCacheFile . '.' . getmypid() . '.tmp';
+    $payload = sprintf('%.6F', microtime(true)) . "\n" . $liveJson;
+    if (@file_put_contents($tmpMicro, $payload, LOCK_EX) !== false) {
+        @chmod($tmpMicro, 0640);
+        @rename($tmpMicro, $microCacheFile);
+    }
+    header('X-XLXMODERN-Live-Cache: MISS');
+    @flock($microLock, LOCK_UN);
+    @fclose($microLock);
+}
+
+echo $liveJson;

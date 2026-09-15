@@ -1,4 +1,4 @@
-/* {{REFLECTOR_NAME}} HAM WEATHER WIDGET V3 */
+/* XLX026 HAM WEATHER WIDGET V3 */
 (() => {
   'use strict';
   const root=document.getElementById('hamWeatherWidget'); if(!root)return;

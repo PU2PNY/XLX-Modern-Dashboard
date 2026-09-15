@@ -1,0 +1,16 @@
+[Unit]
+Description=XLX Modern Dashboard long history collector
+After=xlxd.service
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+Environment=XLX_DASHBOARD_DIR=/var/www/html/xlxd
+ExecStart=/usr/bin/php /usr/local/lib/xlx-dashboard-history-collector.php
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/xlx-dashboard-history
+ReadOnlyPaths=/var/log /xlxd /var/www/html/xlxd

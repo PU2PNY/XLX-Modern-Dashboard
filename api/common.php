@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+/* XLX026_IDENTITY_CONFIDENCE_V1 */
 function cfg(): array { static $c; return $c ??= require dirname(__DIR__) . '/config.php'; }
 function json_out(array $data,int $status=200): never { http_response_code($status); header('Content-Type: application/json; charset=utf-8'); header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0'); echo json_encode($data,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES); exit; }
 function norm_call(string $v): string { $v=strtoupper(trim($v)); $v=preg_replace('/[^A-Z0-9\/\- ]/','',$v)??''; return trim(explode(' ',preg_replace('/\s+/',' ',$v)??$v)[0]); }
@@ -20,7 +21,7 @@ function country_from_xlxd_csv(string $call): ?array {
 
     if($prefixes===null){
         $prefixes=[];
-        $file=dirname(__DIR__,2).'/xlxd/pgs/country.csv';
+        $file=dirname(__DIR__).'/pgs/country.csv';
 
         if(is_readable($file)){
             $handle=@fopen($file,'rb');
@@ -246,31 +247,241 @@ function connection_origin_label(array $c): string {
     if($peer!=='' && $peer!=='-') return $peer;
     return trim((string)($c['callsign']??''));
 }
-function match_tx_connection(array $connections,string $call,string $suffix,string $module,string $protocol,int $ts): array {
-    $best=null; $bestScore=-999999; $exact=false;
-    foreach($connections as $c){
-        $score=0;
-        if(($c['module']??'?')===$module) $score+=80; else $score-=80;
-        if(($c['callsign']??'')===$call){$score+=100;$exact=true;}
-        if($suffix!=='' && ($c['suffix']??'')===$suffix) $score+=25;
-        if($protocol!=='' && $protocol!=='Não identificado' && ($c['protocol']??'')===$protocol) $score+=40;
-        $age=abs($ts-(int)($c['last_activity']??0));
-        if($age<=5)$score+=35; elseif($age<=30)$score+=20; elseif($age<=120)$score+=8; else $score-=min(40,(int)floor($age/300));
-        if($score>$bestScore){$bestScore=$score;$best=$c;}
+function match_tx_connection(
+    array $connections,
+    string $call,
+    string $suffix,
+    string $module,
+    string $protocol,
+    int $ts
+): array {
+    /*
+     * XLX026_GATEWAY_EXATO_V14C
+     *
+     * REGRA:
+     *
+     * O client informado pelo evento do XLXD
+     * é a origem primária desta transmissão.
+     *
+     * Nunca escolhe uma conexão pertencente
+     * a OUTRO indicativo apenas porque ela:
+     *
+     * - está no mesmo módulo;
+     * - usa protocolo semelhante;
+     * - teve atividade em horário próximo.
+     *
+     * O STATION / Via node continua sendo
+     * aplicado posteriormente para separar:
+     *
+     *   operador real != gateway
+     */
+
+    $call=norm_call($call);
+
+    $suffix=strtoupper(
+        trim($suffix)
+    );
+
+    $module=strtoupper(
+        substr(
+            trim($module),
+            0,
+            1
+        )
+    );
+
+    if(
+        $call===''
+        || $module===''
+    ){
+        return [
+            'gateway'=>'Não identificado',
+            'via'=>'',
+            'peer'=>'',
+            'endpoint_ip'=>'',
+            'origin_match'=>'indisponível',
+            'identity_confidence'=>'none',
+            'identity_evidence'=>'none'
+        ];
     }
-    if(!$best || $bestScore<20) return ['gateway'=>'Não identificado','via'=>'','peer'=>'','endpoint_ip'=>'','origin_match'=>'indisponível'];
-    return [
-      'gateway'=>connection_origin_label($best)?:'Não identificado',
-      'via'=>(string)($best['via']??''),
-      'peer'=>(string)($best['peer']??''),
-      'endpoint_ip'=>mask_ip((string)($best['ip']??'')),
-      'origin_match'=>$exact?'exata':'estimada'
+
+    /*
+     * Se não encontrarmos a conexão completa,
+     * ainda sabemos quem o próprio log chamou
+     * de client.
+     */
+    $result=[
+        'gateway'=>$call,
+        'via'=>'',
+        'peer'=>'',
+        'endpoint_ip'=>'',
+        'origin_match'=>'log-client',
+        'identity_confidence'=>'network',
+        'identity_evidence'=>'xlxd-log-client'
     ];
+
+    $best=null;
+    $bestScore=PHP_INT_MIN;
+
+    foreach(
+        $connections as $c
+    ){
+        $connectionCall=norm_call(
+            (string)(
+                $c['callsign']
+                ?? ''
+            )
+        );
+
+        /*
+         * FUNDAMENTAL:
+         * outro indicativo nunca participa.
+         */
+        if(
+            $connectionCall!==$call
+        ){
+            continue;
+        }
+
+        $connectionModule=strtoupper(
+            substr(
+                trim(
+                    (string)(
+                        $c['module']
+                        ?? ''
+                    )
+                ),
+                0,
+                1
+            )
+        );
+
+        if(
+            $connectionModule!==$module
+        ){
+            continue;
+        }
+
+        $connectionSuffix=strtoupper(
+            trim(
+                (string)(
+                    $c['suffix']
+                    ?? ''
+                )
+            )
+        );
+
+        /*
+         * Se ambos possuem sufixo explícito,
+         * eles precisam ser iguais.
+         */
+        if(
+            $suffix!==''
+            && $connectionSuffix!==''
+            && $connectionSuffix!==$suffix
+        ){
+            continue;
+        }
+
+        $score=100;
+
+        if(
+            $suffix!==''
+            && $connectionSuffix===$suffix
+        ){
+            $score+=40;
+        }
+
+        $connectionProtocol=trim(
+            (string)(
+                $c['protocol']
+                ?? ''
+            )
+        );
+
+        if(
+            $protocol!==''
+            && $protocol!=='Não identificado'
+            && $connectionProtocol===$protocol
+        ){
+            $score+=30;
+        }
+
+        $lastActivity=(int)(
+            $c['last_activity']
+            ?? 0
+        );
+
+        if($lastActivity>0){
+
+            $age=abs(
+                $ts-$lastActivity
+            );
+
+            if($age<=5){
+                $score+=30;
+
+            } elseif($age<=30){
+                $score+=20;
+
+            } elseif($age<=120){
+                $score+=8;
+            }
+        }
+
+        if(
+            $best===null
+            || $score>$bestScore
+        ){
+            $best=$c;
+            $bestScore=$score;
+        }
+    }
+
+    /*
+     * Não existe conexão correspondente.
+     *
+     * Mantém o client registrado pelo log,
+     * em vez de escolher outra pessoa.
+     */
+    if($best===null){
+        return $result;
+    }
+
+    /*
+     * Mesma conexão comprovada.
+     *
+     * Via e peer continuam disponíveis
+     * como METADADOS, mas não substituem
+     * o gateway.
+     */
+    $result['via']=(string)(
+        $best['via']
+        ?? ''
+    );
+
+    $result['peer']=(string)(
+        $best['peer']
+        ?? ''
+    );
+
+    $result['endpoint_ip']=mask_ip(
+        (string)(
+            $best['ip']
+            ?? ''
+        )
+    );
+
+    $result['origin_match']='exata';
+    $result['identity_confidence']='connection';
+    $result['identity_evidence']='xlxd-log+xml-connection';
+
+    return $result;
 }
 
 
 /*
- * {{REFLECTOR_NAME}} — operador real de uma transmissão D-STAR.
+ * XLX026 — operador real de uma transmissão D-STAR.
  *
  * Log:
  *   client = gateway/nó
@@ -440,6 +651,144 @@ function xlx026_find_dstar_station(
     return $best;
 }
 
+
+/*
+ * XLX026_STATION_STREAM_IDENTITY_V1
+ *
+ * Para protocolos que não são D-STAR:
+ * só aceita STATION cuja atividade corresponda
+ * praticamente ao mesmo instante do Opening stream.
+ *
+ * Isso evita atribuir o operador errado quando
+ * várias pessoas usam o mesmo gateway/repetidora.
+ */
+function xlx026_find_stream_station(
+    array $index,
+    string $gateway,
+    string $gatewaySuffix,
+    string $module,
+    int $startedAt
+): ?array {
+    $gateway=norm_call($gateway);
+    $gatewaySuffix=strtoupper(trim($gatewaySuffix));
+    $module=strtoupper(trim($module));
+
+    if(
+        $gateway===''
+        || $module===''
+        || $startedAt<=0
+    ){
+        return null;
+    }
+
+    $items=$index[$gateway.'|'.$module]??[];
+
+    if($items===[]) return null;
+
+    $best=null;
+    $bestDistance=PHP_INT_MAX;
+    $ambiguous=false;
+
+    foreach($items as $station){
+        $xmlSuffix=strtoupper(
+            trim(
+                (string)(
+                    $station['gateway_suffix']??''
+                )
+            )
+        );
+
+        if(
+            $gatewaySuffix!==''
+            && $xmlSuffix!==''
+            && $gatewaySuffix!==$xmlSuffix
+        ){
+            continue;
+        }
+
+        $heard=(int)($station['heard_at']??0);
+
+        if($heard<=0) continue;
+
+        /*
+         * Nos dados reais do XLX026:
+         * LastHeardTime coincide com Opening stream.
+         *
+         * Permitimos somente 2 segundos de diferença.
+         */
+        $distance=abs($heard-$startedAt);
+
+        if($distance>2) continue;
+
+        if($distance<$bestDistance){
+            $best=$station;
+            $bestDistance=$distance;
+            $ambiguous=false;
+            continue;
+        }
+
+        if(
+            $distance===$bestDistance
+            && $best!==null
+            && norm_call(
+                (string)($best['callsign']??'')
+            )!==norm_call(
+                (string)($station['callsign']??'')
+            )
+        ){
+            $ambiguous=true;
+        }
+    }
+
+    if($ambiguous) return null;
+
+    return $best;
+}
+
+function xlx026_apply_stream_station(
+    array $tx,
+    array $station
+): array {
+    $networkCall=norm_call(
+        (string)($tx['callsign']??'')
+    );
+
+    $networkSuffix=strtoupper(
+        trim((string)($tx['suffix']??''))
+    );
+
+    $tx=xlx026_apply_dstar_station(
+        $tx,
+        $station
+    );
+
+    if($networkCall!==''){
+        $tx['network_callsign']=$networkCall;
+    }
+
+    if($networkSuffix!==''){
+        $tx['network_suffix']=$networkSuffix;
+    }
+
+    $gatewaySuffix=strtoupper(
+        trim(
+            (string)(
+                $station['gateway_suffix']??''
+            )
+        )
+    );
+
+    if($gatewaySuffix!==''){
+        $tx['gateway_suffix']=$gatewaySuffix;
+    }
+
+    $tx['identity_source']='xlxd-station-stream';
+    $tx['identity_confidence']='station-strict';
+    $tx['identity_evidence']='xlxd-station+gateway+module+time';
+
+    return $tx;
+}
+
 function xlx026_apply_dstar_station(
     array $tx,
     array $station
@@ -465,6 +814,12 @@ function xlx026_apply_dstar_station(
 
     if($gateway!==''){
         $tx['gateway']=$gateway;
+    }
+
+    $tx['identity_confidence']='station';
+    $tx['identity_evidence']='xlxd-station+via-node+module+time';
+    if(trim((string)($tx['identity_source']??''))===''){
+        $tx['identity_source']='xlxd-station';
     }
 
     return $tx;
@@ -518,6 +873,28 @@ function history_log_lines(string $currentLog,int $bytes=4194304): array {
 
         foreach(preg_split('/\R/',$raw)?:[] as $line){
             if($line==='') continue;
+
+            /*
+             * XLX026_HISTORY_RELEVANT_FILTER_V1
+             *
+             * active_and_history() somente interpreta estas
+             * tres classes de evento. Linhas restantes nao
+             * precisam de SHA1, parse de horario ou ordenacao.
+             */
+            if(
+                stripos($line,'New client')===false
+                && stripos(
+                    $line,
+                    'Opening stream on module'
+                )===false
+                && stripos(
+                    $line,
+                    'Closing stream of module'
+                )===false
+            ){
+                continue;
+            }
+
 
             $hash=sha1($line);
 
@@ -582,7 +959,8 @@ function active_and_history(array $connections, ?int $historyLimit = null, ?int 
             $recent[$call.'||*']=$lab;
         }
 
-        if(preg_match('/Opening stream on module\s+([A-Z])\s+for client\s+([A-Z0-9]+)\s*([A-Z0-9]+)?\s+with sid\s+(\d+)/i',$line,$m)){
+        /* XLX026_LOG260_COMPAT_V2: parser compatível XLXD 2.5/2.6 */
+        if(preg_match('/Opening stream on module\s+([A-Z])\s+for\s+(?:client\s+)?([A-Z0-9\/\-]+)(?:\s+((?!(?:on|via)\b)[A-Z0-9]+))?(?:\s*\/\s*[A-Z0-9+_-]+)?(?:\s+(?:on|via)\s+[A-Z0-9\/\-]+(?:\s+[A-Z0-9]+)?)?\s+with sid\s+(\d+)/i',$line,$m)){
             $mod=strtoupper($m[1]);
             $call=norm_call($m[2]);
             $s=strtoupper(trim($m[3]??''));
@@ -591,7 +969,7 @@ function active_and_history(array $connections, ?int $historyLimit = null, ?int 
             $protocol=candidate_protocol($connections,$call,$s,$mod,$recent,$ts);
             $origin=match_tx_connection($connections,$call,$s,$mod,$protocol,$ts);
             $active[$mod]=array_merge([
-                'key'=>$mod.':'.$sid,
+                'key'=>$mod.':'.$sid.':'.$ts,
                 'module'=>$mod,
                 'stream_id'=>$sid,
                 'callsign'=>$call,
@@ -620,6 +998,9 @@ function active_and_history(array $connections, ?int $historyLimit = null, ?int 
                         'D-STAR/'
                     )===0
                 ){
+                    /*
+                     * D-STAR preservado exatamente como já estava.
+                     */
                     $station=xlx026_find_dstar_station(
                         $dstarStations,
                         (string)($tx['callsign']??''),
@@ -631,6 +1012,26 @@ function active_and_history(array $connections, ?int $historyLimit = null, ?int 
 
                     if($station!==null){
                         $tx=xlx026_apply_dstar_station(
+                            $tx,
+                            $station
+                        );
+                    }
+                }else{
+                    /*
+                     * XLX026_STATION_STREAM_HISTORY_V1
+                     * C4FM/YSF, DMR e outros:
+                     * casamento estrito pelo início do stream.
+                     */
+                    $station=xlx026_find_stream_station(
+                        $dstarStations,
+                        (string)($tx['callsign']??''),
+                        (string)($tx['suffix']??''),
+                        (string)($tx['module']??''),
+                        (int)($tx['started_at']??0)
+                    );
+
+                    if($station!==null){
+                        $tx=xlx026_apply_stream_station(
                             $tx,
                             $station
                         );
@@ -655,6 +1056,9 @@ function active_and_history(array $connections, ?int $historyLimit = null, ?int 
                 'D-STAR/'
             )===0
         ){
+            /*
+             * D-STAR preservado exatamente como já estava.
+             */
             $station=xlx026_find_dstar_station(
                 $dstarStations,
                 (string)($tx['callsign']??''),
@@ -666,6 +1070,24 @@ function active_and_history(array $connections, ?int $historyLimit = null, ?int 
 
             if($station!==null){
                 $active[$m]=xlx026_apply_dstar_station(
+                    $tx,
+                    $station
+                );
+            }
+        }else{
+            /*
+             * XLX026_STATION_STREAM_ACTIVE_V1
+             */
+            $station=xlx026_find_stream_station(
+                $dstarStations,
+                (string)($tx['callsign']??''),
+                (string)($tx['suffix']??''),
+                (string)($tx['module']??''),
+                (int)($tx['started_at']??0)
+            );
+
+            if($station!==null){
+                $active[$m]=xlx026_apply_stream_station(
                     $tx,
                     $station
                 );
@@ -758,8 +1180,8 @@ function write_reflectors_cache(string $cacheFile,array $items): void {
 }
 
 function fetch_reflectors(): array {
-    $cacheFile=sys_get_temp_dir().'/xlx_reflectors_cache_v1.json';
-    $lockFile=sys_get_temp_dir().'/xlx_reflectors_cache_v1.lock';
+    $cacheFile=sys_get_temp_dir().'/xlxmodern_reflectors_cache_v1.json';
+    $lockFile=sys_get_temp_dir().'/xlxmodern_reflectors_cache_v1.lock';
     $cacheTtl=60;
 
     $cached=read_reflectors_cache($cacheFile,$cacheTtl);
@@ -779,7 +1201,7 @@ function fetch_reflectors(): array {
         $ctx=stream_context_create([
             'http'=>[
                 'timeout'=>8,
-                'user_agent'=>'{{REFLECTOR_NAME}}-Painel/6.1',
+                'user_agent'=>'XLX-Modern-Dashboard/1.0',
                 'ignore_errors'=>true
             ],
             'ssl'=>[

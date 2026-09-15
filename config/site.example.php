@@ -12,6 +12,7 @@ return [
   'header_title'=>'XLX000 Reflector',
   'header_subtitle'=>'Multiprotocol amateur radio reflector',
   'footer_text'=>'',
+  'logo_path'=>'assets/logo-reflector.svg',
  ],
  'features'=>[
   'show_contact_email'=>true,
@@ -22,6 +23,7 @@ return [
   'reflector_number'=>'000',
   'reflector_short_number'=>'0',
   'ysf_id'=>'00000',
+  'ysf_room'=>'XLX000',
   'dmr_tg'=>'4000',
  ],
  'locale'=>[

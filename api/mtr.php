@@ -71,12 +71,12 @@ function measureTarget(string $ip): array
         '/usr/bin/timeout',
         '-k',
         '2s',
-        '10s',
+        '6s',
         '/usr/bin/mtr',
         '-r',
         '-C',
         '-c',
-        '3',
+        '2',
         '-i',
         '1',
         '-n',
@@ -386,25 +386,54 @@ if (
 }
 
 /*
- * Obtém o destino diretamente da mesma API rápida,
- * executando-a localmente pelo PHP CLI.
- *
- * Evita a cadeia:
- * mtr.php -> curl -> Apache -> live.php
- *
- * O navegador continua sem escolher nem enviar o endereço IP.
+ * Reutiliza primeiro o snapshot rápido já produzido por live.php.
+ * Com vários navegadores abertos isso evita criar um PHP CLI extra
+ * para cada chamada MTR. Se o snapshot estiver ausente/antigo,
+ * mantém o caminho anterior como fallback seguro.
  */
-$liveResult = runCommand([
-    '/usr/bin/php',
-    '-d',
-    'date.timezone=America/Sao_Paulo',
-    __DIR__ . '/live.php',
-]);
+$live = null;
+$sharedLiveFile = '/var/cache/xlx-dashboard/live-fast.cache';
 
-$live = json_decode(
-    trim($liveResult['stdout']),
-    true
-);
+if (is_readable($sharedLiveFile)) {
+    $sharedRaw = @file_get_contents($sharedLiveFile);
+
+    if (is_string($sharedRaw) && $sharedRaw !== '') {
+        $separator = strpos($sharedRaw, "\n");
+
+        if ($separator !== false) {
+            $sharedStamp = (float) substr($sharedRaw, 0, $separator);
+            $sharedAge = microtime(true) - $sharedStamp;
+            $sharedBody = substr($sharedRaw, $separator + 1);
+
+            if ($sharedAge >= 0 && $sharedAge <= 2.0 && $sharedBody !== '') {
+                $sharedDecoded = json_decode($sharedBody, true);
+
+                if (
+                    is_array($sharedDecoded)
+                    && !empty($sharedDecoded['ok'])
+                    && isset($sharedDecoded['active'])
+                    && is_array($sharedDecoded['active'])
+                ) {
+                    $live = $sharedDecoded;
+                }
+            }
+        }
+    }
+}
+
+if (!is_array($live)) {
+    $liveResult = runCommand([
+        '/usr/bin/php',
+        '-d',
+        'date.timezone=America/Sao_Paulo',
+        __DIR__ . '/live.php',
+    ]);
+
+    $live = json_decode(
+        trim($liveResult['stdout']),
+        true
+    );
+}
 
 if (
     !is_array($live)
@@ -422,6 +451,33 @@ $transmission =
     $live['active'][$module]
     ?? null;
 
+$transmissionRawKey =
+    is_array($transmission)
+        ? trim(
+            (string) (
+                $transmission['key']
+                ?? ''
+            )
+        )
+        : '';
+
+$transmissionStableKey =
+    is_array($transmission)
+        ? (
+            $module
+            . ':'
+            . (string) (
+                $transmission['stream_id']
+                ?? ''
+            )
+            . ':'
+            . (string) (
+                $transmission['started_at']
+                ?? ''
+            )
+        )
+        : '';
+
 if (
     !is_array($transmission)
     || strtoupper(
@@ -434,12 +490,8 @@ if (
     ) !== $callsign
     || (
         $key !== ''
-        && trim(
-            (string) (
-                $transmission['key']
-                ?? ''
-            )
-        ) !== $key
+        && $key !== $transmissionRawKey
+        && $key !== $transmissionStableKey
     )
 ) {
     respond([
@@ -496,9 +548,9 @@ if (
 }
 
 $cacheDirectory =
-    '/var/cache/xlx026-dashboard/mtr';
+    '/var/cache/xlx-dashboard/mtr';
 
-$cacheTtl = 9;
+$cacheTtl = 15;
 
 $hash = hash(
     'sha256',
@@ -611,7 +663,7 @@ if (
  */
 $slotHandle = null;
 
-for ($slot = 1; $slot <= 3; $slot++) {
+for ($slot = 1; $slot <= 2; $slot++) {
     $candidate = fopen(
         $cacheDirectory
         . '/slot_'
@@ -774,7 +826,7 @@ $result = [
     'jitter_ms' => $jitter,
     'history' => $history,
     'updated_at' => time(),
-    'cycles' => 3,
+    'cycles' => 2,
     'cache_ttl' => $cacheTtl,
 ];
 
@@ -825,7 +877,7 @@ if (
     ) !== ''
 ) {
     error_log(
-        '{{REFLECTOR_NAME}} MTR: '
+        'XLX Modern MTR: '
         . preg_replace(
             '/\s+/',
             ' ',

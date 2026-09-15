@@ -39,9 +39,9 @@ $cacheVariant = $is24HourHistory
             : '-' . $historyLimit
     );
 
-$cacheFile = '/var/cache/xlx026-dashboard/status' . $cacheVariant . '.json';
-$lockFile  = '/var/cache/xlx026-dashboard/status' . $cacheVariant . '.lock';
-$cacheTtl  = 1;
+$cacheFile = '/var/cache/xlx-dashboard/status' . $cacheVariant . '.json';
+$lockFile  = '/var/cache/xlx-dashboard/status' . $cacheVariant . '.lock';
+$cacheTtl  = 3;
 
 function send_cached_status(
     string $cacheFile,
@@ -75,7 +75,7 @@ function send_cached_status(
     }
 
     header(
-        'X-{{REFLECTOR_NAME}}-Cache: ' .
+        'X-XLX-Modern-Cache: ' .
         ($allowExpired ? 'stale-while-refresh' : 'fresh')
     );
 

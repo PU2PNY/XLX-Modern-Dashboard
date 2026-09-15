@@ -4,6 +4,12 @@ Standalone public web dashboard for XLX/xlxd reflectors.
 
 This repository contains only the dashboard and its dashboard-specific installer. It was restored from a preserved production-derived dashboard snapshot and sanitized so reflector-specific operational data is not distributed.
 
+## Production parity
+
+The `main` dashboard is synchronized with the production-proven XLX026 Ao Vivo implementation as of 2026-09-15. Reflector identity, domain, YSF room and logo remain configurable so other XLX installations do not inherit XLX026-specific operational identity.
+
+Ao Vivo parity includes the current multi-TX layout, QRZ public photo handling, 24-hour activity table, 7/30-day on-demand history, RadioID repeater enrichment, browser-load scaling, accessibility controls, mobile layout and passive audio VU display. The VU UI consumes optional runtime telemetry when a compatible passive audio provider is installed; the audio decoder/provider itself is intentionally outside this public dashboard repository.
+
 ## Included
 
 - Live transmissions and recent activity

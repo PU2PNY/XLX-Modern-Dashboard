@@ -1,7 +1,7 @@
 (() => {
     'use strict';
 
-    const STORAGE_KEY = 'xlx_pwa_install_decision_v1';
+    const STORAGE_KEY = 'xlx026_pwa_install_decision_v1';
     const INSTALL_ACCEPTED = 'installed';
     const INSTALL_DECLINED = 'declined';
 
@@ -73,7 +73,7 @@
 
     const configureIOS = () => {
         description.textContent =
-            'Adicione o {{REFLECTOR_NAME}} à Tela de Início para abrir o painel como um aplicativo.';
+            'Adicione o XLX026 à Tela de Início para abrir o painel como um aplicativo.';
 
         installButton.textContent = 'Ver como instalar';
     };
