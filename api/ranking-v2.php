@@ -4,9 +4,12 @@ header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 header('X-Content-Type-Options: nosniff');
 
-$f='/var/lib/xlx026-ranking/ranking.json';
+$f=null;
+foreach(['/var/lib/xlx-ranking/ranking.json','/var/lib/xlx026-ranking/ranking.json'] as $candidate){
+ if(is_readable($candidate)){ $f=$candidate; break; }
+}
 
-if(!is_readable($f)){
+if($f===null){
  http_response_code(503);
  echo json_encode(['ok'=>false,'error'=>'ranking_unavailable']);
  exit;
