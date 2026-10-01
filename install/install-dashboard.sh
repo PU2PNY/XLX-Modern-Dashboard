@@ -242,9 +242,19 @@ install -d -m 0750 -o www-data -g www-data /var/lib/xlx-dashboard-history
 install -m 0644 "$ROOT/install/history-collector.php" /usr/local/lib/xlx-dashboard-history-collector.php
 sed "s#/var/www/html/xlxd#$DEST#g" "$ROOT/install/systemd/xlx-dashboard-history-collector.service" > /etc/systemd/system/xlx-dashboard-history-collector.service
 install -m 0644 "$ROOT/install/systemd/xlx-dashboard-history-collector.timer"     /etc/systemd/system/xlx-dashboard-history-collector.timer
+
+# Persistent Ranking storage. Keeps day/month rollover from looking like data loss
+# and provides rolling 7-day plus current-month/current-year statistics.
+install -d -m 0755 -o root -g root /var/lib/xlx-ranking
+install -m 0755 "$ROOT/install/ranking-v2-collector.py" /usr/local/lib/xlx-dashboard-ranking-v2.py
+install -m 0644 "$ROOT/install/systemd/xlx-dashboard-ranking-v2.service" /etc/systemd/system/xlx-dashboard-ranking-v2.service
+install -m 0644 "$ROOT/install/systemd/xlx-dashboard-ranking-v2.timer" /etc/systemd/system/xlx-dashboard-ranking-v2.timer
+
 systemctl daemon-reload
 systemctl enable --now xlx-dashboard-history-collector.timer >/dev/null
+systemctl enable --now xlx-dashboard-ranking-v2.timer >/dev/null
 systemctl start xlx-dashboard-history-collector.service || true
+systemctl start xlx-dashboard-ranking-v2.service || true
 
 cat > "$DEST/config/site.php" <<PHP
 <?php
