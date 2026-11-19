@@ -22,3 +22,16 @@ Em toda tarefa, antes de editar, identificar o tipo de trabalho e consultar apen
 Fontes oficiais:
 - https://github.com/GoogleChrome/modern-web-guidance
 - https://github.com/Leonxlnx/taste-skill
+
+## Ponytail — padrao de implementacao conservador
+
+Aplicar estes principios em toda tarefa que altere codigo, mesmo quando o plugin Ponytail nao estiver instalado no ambiente:
+- Antes de editar, inspecionar os trechos afetados e mapear consumidores, testes, fixtures, configuracoes, contratos de API e possiveis impactos em dados.
+- Preferir a menor alteracao **completa, legivel e verificavel**. Reutilizar helpers, componentes e dependencias ja presentes. Evitar dependencias, camadas, flags e funcionalidades especulativas.
+- Corrigir a causa comum do defeito, nao mascarar sintomas em cada tela ou empresa. Verificar todos os chamadores ao modificar comportamentos compartilhados.
+- Nao sacrificar validacao, autenticacao, autorizacao, isolamento multiempresa, seguranca, tratamento de erros, acessibilidade, compatibilidade nem calibracao de hardware e protocolos para reduzir linhas.
+- Mudancas de logica nao trivial, pagamentos, dados, permissoes, integracoes, scripts ou seguranca exigem teste focado ou verificacao reproduzivel. Informar verificacoes executadas, nao executadas e riscos residuais.
+- Nao executar hooks, instaladores ou scripts de terceiros sem revisar sua origem e conteudo. Nao presumir que plugins ou skills estejam instalados; seguir estas regras como alternativa.
+- Estas orientacoes complementam as skills de frontend acima; nao as substituem. Priorizar requisitos do projeto, seguranca e intencao do usuario. Trabalhar em branch/PR e nao fazer merge, deploy, migracao, reinicio ou alteracao de producao automaticamente.
+
+Referencia oficial: https://github.com/DietrichGebert/ponytail/blob/main/AGENTS.md
