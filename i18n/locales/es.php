@@ -130,4 +130,5 @@ return [
     'seo.reflectors.description' => 'Lista actualizada de reflectores XLX registrados con país, estado y descripción.',
     'seo.support.title' => 'Soporte y tutoriales — {{REFLECTOR_NAME}} Brasil',
     'seo.support.description' => 'Tutoriales y orientación de conexión a {{REFLECTOR_NAME}} Brasil mediante D-STAR, DMR y C4FM/YSF.',
+    'table.radio_suffix' => 'Sufijo',
 ];

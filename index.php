@@ -142,8 +142,8 @@ $canonical = $page === 'digital-lab'
 <link rel="stylesheet" href="assets/ham-weather-widget.css?v=3">
 <link rel="stylesheet" href="assets/mobile-menu-v4.css?v=20260807_023247">
 <?php if ($page === 'ao-vivo'): ?><link rel="stylesheet" href="assets/ao-vivo-clean-v1.css?v=20260807_024051"><?php endif; ?>
-<link rel="stylesheet" href="assets/history-sound-menu-v1.css?v=20260807_025428">
-<link rel="stylesheet" href="assets/history-mobile-fit-v2.css?v=20260807_031008">
+<link rel="stylesheet" href="assets/history-sound-menu-v1.css?v=20261127-history">
+<link rel="stylesheet" href="assets/history-mobile-fit-v2.css?v=20261127-history">
 <link rel="stylesheet" href="assets/table-row-hover-v1.css?v=20260807_031841">
 <link rel="stylesheet" href="assets/header-unificado-v1.css?v=20260807_032449">
 <?php if ($page === 'ao-vivo'): ?><link rel="stylesheet" href="assets/ao-vivo-core-bundle-v1.css?v=<?=asset_version('assets/ao-vivo-core-bundle-v1.css')?>"><?php endif; ?>
@@ -151,7 +151,7 @@ $canonical = $page === 'digital-lab'
 <?php if ($page === 'certificado'): ?><link rel="stylesheet" href="assets/certificado.css?v=20260809_01"><?php endif; ?>
 <?php if ($page === 'ao-vivo'): ?><link rel="stylesheet" href="assets/ao-vivo-final-bundle-v1.css?v=<?=asset_version('assets/ao-vivo-final-bundle-v1.css')?>"><?php endif; ?>
 <?php if ($page === 'ao-vivo'): ?><link rel="stylesheet" href="assets/qrz-tx-photo-v1.css?v=<?=asset_version('assets/qrz-tx-photo-v1.css')?>"><?php endif; ?>
-<link rel="stylesheet" href="assets/atividade-24h-conectados-v1.css?v=STATUS_LINK_V15B_20260906_220135">
+<link rel="stylesheet" href="assets/atividade-24h-conectados-v1.css?v=20261127-history">
 <link rel="stylesheet" href="assets/cert-event-alert-v1.css?v=CERT_ALERT_FIX_ISCERT_20260907">
 <link rel="stylesheet" href="assets/xlx-accessibility.css?v=A11Y_AUDIO_V5E_20260823_143453">
 <link rel="stylesheet" href="assets/standby-mensagens-v3.css?v=20260814_091215">
@@ -160,7 +160,7 @@ $canonical = $page === 'digital-lab'
 <link rel="stylesheet" href="/assets/header-horizontal-responsivo-v4.css?v=20260822_035650">
 <link rel="stylesheet" href="/assets/header-menu-breakpoint-fix-v1.css?v=20260908_1401">
 <link rel="stylesheet" href="/assets/xlx-accessibility-compact-v1.css?v=20260823_144035">
-<link rel="stylesheet" href="/assets/grid-text-wrap-v1.css?v=LAYOUT_WIDTH_1240_V1_20260907">
+<link rel="stylesheet" href="/assets/grid-text-wrap-v1.css?v=20261127-history">
 <link rel="stylesheet" href="/assets/mobile-visual-v1.css?v=MOBILE_VISUAL_V3_A11Y_20260908_1605">
 <meta name="application-name" content="{{REFLECTOR_TITLE}}">
 <link rel="alternate" type="application/json" href="/ai-context.json" title="{{REFLECTOR_NAME}} AI context">
@@ -201,7 +201,7 @@ $canonical = $page === 'digital-lab'
   <aside class="live-widget"><div class="widget-heading"><div><p class="eyebrow">MONITOR AO VIVO</p><h2>Transmissões</h2></div><span id="widgetCount">Standby</span></div><div class="live-summary-bar" aria-label="Resumo do monitor ao vivo"><span class="live-summary-item live-summary-connected"><b id="headerConnected">0</b><small>conectados</small></span><span class="live-summary-item live-summary-active"><b id="headerActive">0</b><small>TX ativa</small></span></div><div id="moduleGrid" class="module-grid widget-grid"></div></aside>
   <div class="dashboard-main panel compact-panel">
    <div class="section-title panel-title"><div><p class="eyebrow">ÚLTIMAS ATIVIDADES</p><h2 id="historyPeriodTitle" class="history-title-connected-size">Atividade das últimas 24 horas</h2></div><span id="historyCoverageNote" class="table-note">Todos os indicativos</span></div>
-   <div class="table-wrap"><table class="home-history"><thead><tr><th>Nº</th><th>País</th><th>Status</th><th>Indicativo</th><th>Nome</th><th>Gateway / Repetidora</th><th>Cidade</th><th>Protocolo</th><th>Módulo</th><th>Horário TX</th><th>Tempo de TX</th></tr></thead><tbody id="historyRows"></tbody></table></div>
+   <div class="table-wrap"><table class="home-history"><thead><tr><th>Nº</th><th>País</th><th>Status</th><th>Indicativo</th><th class="history-suffix-cell" scope="col">Sufixo</th><th>Nome</th><th>Gateway / Repetidora</th><th>Cidade</th><th>Protocolo</th><th>Módulo</th><th>Horário TX</th><th>Tempo de TX</th></tr></thead><tbody id="historyRows"></tbody></table></div>
   </div>
  </section>
  <!-- XLX026 HAM WEATHER WIDGET V1 -->
